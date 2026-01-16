@@ -10,7 +10,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y libunwind-dev python3-pip build-essential git python3 python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar openjdk-17-jdk expect
+          sudo apt install -y libunwind-dev python3-pip build-essential git python3 python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar openjdk-17-jdk
           pip3 install --user --upgrade buildozer cython virtualenv
 
       - name: Build APK with Buildozer
@@ -18,28 +18,21 @@ jobs:
           export PATH=$PATH:$HOME/.local/bin
           if [ ! -f buildozer.spec ]; then buildozer init; fi
           
-          # إجبار النظام على استخدام نسخة مستقرة وتعديل الإعدادات
+          # إعدادات المصنع الذكي
           sed -i 's/package.domain = org.test/package.domain = com.supreme.factory/' buildozer.spec
           sed -i 's/# android.archs = armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
-          sed -i 's/# android.api = 31/android.api = 33/' buildozer.spec
           
-          # --- الخيار النووي لقبول الرخص ---
+          # قبول كافة رخص أندرويد لضمان عدم التوقف
           mkdir -p ~/.android && touch ~/.android/repositories.cfg
-          
-          # 1. قبول الرخص عبر sdkmanager الرسمي
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
           
-          # 2. بناء ملف الرخص يدوياً داخل مجلد Buildozer المتوقع لخدع النظام
-          mkdir -p .buildozer/android/platform/android-sdk/licenses
-          echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb743702262b448df33e\n24333f8a63b6825ea0c55727f3959301ffc54508\n84831b9409646a918e30573bab4c9c91346d8abd\n491b4ff75340ddfca0f65b93f069153ad501705e\ne6b7c4a170570a2737c569f44f5c2250ec4644a8\n294638703a1a580e0c90066d54359419d27521e1" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          # بدء عملية التصنيع الفعلي
+          buildozer -v android debug
+        env:
+          ACCEPT_EULA: y
 
-          # 3. تشغيل البناء باستخدام expect للرد الآلي على أي سؤال يظهر
-          expect -c "
-          set timeout -1
-          spawn buildozer -v android debug
-          expect {
-            \"Accept? (y/N):\" { send \"y\r\"; exp_continue }
-            \"Do you agree\" { send \"y\r\"; exp_continue }
-            eof
-          }
-          "
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: My_AI_Game_Final
+          path: ./**/*.apk  # هذا هو السطر السحري الذي سيظهر لك زر التحميل
