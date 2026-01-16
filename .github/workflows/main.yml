@@ -10,18 +10,24 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
+          # إضافة libunwind-dev وحل مشاكل الاعتمادات
+          sudo apt install -y libunwind-dev
           sudo apt install -y python3-pip build-essential git python3 python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar
           pip3 install --user --upgrade buildozer cython virtualenv
 
       - name: Build APK with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          buildozer init
-          # تعديل الإعدادات لتناسب الأندرويد الحديث
+          # إذا لم يكن الملف موجوداً سيقوم بإنشائه، وإذا وجده سيكمل
+          if [ ! -f buildozer.spec ]; then buildozer init; fi
+          
+          # ضبط الإعدادات لأقصى أداء جرافيك
           sed -i 's/package.domain = org.test/package.domain = com.supreme.factory/' buildozer.spec
-          sed -i 's/android.archs = armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
-          # البدء في بناء الـ APK (سيستغرق وقتاً طويلاً وهذا جيد)
-          buildozer -v android debug
+          sed -i 's/#android.archs = armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
+          sed -i 's/p4a.branch = master/p4a.branch = release-2022.12.20/' buildozer.spec || true
+          
+          # البدء في بناء الـ APK (سيعمل الآن بدون توقف)
+          yes | buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
