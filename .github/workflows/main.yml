@@ -18,24 +18,23 @@ jobs:
           export PATH=$PATH:$HOME/.local/bin
           if [ ! -f buildozer.spec ]; then buildozer init; fi
           
-          # تعديل الإعدادات لضمان التوافق الكامل
+          # إجبار النظام على استخدام نسخة مستقرة بدلاً من 36.1
           sed -i 's/package.domain = org.test/package.domain = com.supreme.factory/' buildozer.spec
           sed -i 's/# android.archs = armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
+          sed -i 's/# android.api = 31/android.api = 33/' buildozer.spec
           
-          # --- الضربة الاستباقية للرخص وأداة Aidl ---
+          # --- الخيار النووي لقبول الرخص ---
           mkdir -p ~/.android && touch ~/.android/repositories.cfg
-          # الموافقة على رخص SDK الموجودة في السيرفر
+          # قبول الرخص في المجلد الرئيسي
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
-          # تثبيت الأدوات الناقصة التي طلبها السجل السابق
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "build-tools;34.0.0" "platform-tools" "platforms;android-34"
           
-          # تشغيل البناء مع فرض الموافقة على كل شيء
-          buildozer -v android debug
-        env:
-          ACCEPT_EULA: y
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: My_AI_Game_Final
-          path: bin/*.apk
+          # بناء مسار الرخص يدوياً داخل مجلد Buildozer لخدع النظام
+          mkdir -p .buildozer/android/platform/android-sdk/licenses
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb743702262b448df33e\n24333f8a63b6825ea0c55727f3959301ffc54508" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          
+          # تشغيل البناء مع أمر الموافقة المستمر
+          expect -c "
+          spawn buildozer -v android debug
+          expect \"Accept? (y/N):\" { send \"y\r\"; exp_continue }
+          interact
+          " || buildozer -v android debug
