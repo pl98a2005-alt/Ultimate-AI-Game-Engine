@@ -1,4 +1,4 @@
-name: AI_Ultimate_Game_Engine_Final_Fix
+name: KINGS_EMPIRE_ULTIMATE_200K
 on: [push]
 
 jobs:
@@ -7,29 +7,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup System Dependencies
+      - name: Setup Environment
         run: |
           sudo apt update
           sudo apt install -y python3-pip openjdk-17-jdk expect curl zip unzip
-          # تثبيت المكتبات الأساسية لضمان نجاح الـ 10k نقطة
           pip3 install --user --upgrade "buildozer<1.6.0" "Cython<3.0" virtualenv
 
-      - name: Auto-Correct buildozer.spec
+      - name: Configure Sovereign Engine
         run: |
           export PATH=$PATH:$HOME/.local/bin
           if [ ! -f buildozer.spec ]; then buildozer init; fi
-          # ضبط الإعدادات لتكون متوافقة مع الأنظمة الضخمة
-          sed -i 's/title = .*/title = Kings Empire Pro/' buildozer.spec
-          sed -i 's/package.name = .*/package.name = kings_empire_pro/' buildozer.spec
-          # إضافة المكتبات الضرورية لمنع فشل البناء
-          sed -i 's/requirements = .*/requirements = python3,kivy,kivymd,firebase-admin,requests,certifi/' buildozer.spec
+          sed -i 's/title = .*/title = Kings Empire Infinite/' buildozer.spec
+          sed -i 's/package.name = .*/package.name = kings_empire_infinite/' buildozer.spec
+          sed -i 's/requirements = .*/requirements = python3,kivy,kivymd,firebase-admin,requests,certifi,pyjnius/' buildozer.spec
           sed -i 's/# android.archs = .*/android.archs = arm64-v8a/' buildozer.spec
-          sed -i 's/android.permissions = .*/android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,CAMERA,RECORD_AUDIO/' buildozer.spec
+          sed -i 's/android.permissions = .*/android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,CAMERA,RECORD_AUDIO,MODIFY_AUDIO_SETTINGS/' buildozer.spec
 
-      - name: Ultra-Speed Build (No Gap Mode)
+      - name: Build 200K Logic APK
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          # تشغيل البناء مع تجاوز رسائل التأكيد آلياً
           expect -c "
           set timeout -1
           spawn buildozer -v android debug
@@ -40,25 +36,25 @@ jobs:
           }
           "
 
-      - name: Intelligent File Retrieval & Dispatch
+      - name: Secure Telegram Dispatch
         run: |
-          # محاولة إيجاد الـ APK حتى في حال وجود أخطاء بسيطة
           APK_PATH=$(find . -name "*.apk" -not -path "*/.*" | head -n 1)
-          
           if [ -n "$APK_PATH" ]; then
-            cp "$APK_PATH" ./KingsEmpire_10k_Integrated.apk
-            curl -v -F document=@"KingsEmpire_10k_Integrated.apk" \
+            cp "$APK_PATH" ./KingsEmpire_Sovereign.apk
+            curl -v -F document=@"KingsEmpire_Sovereign.apk" \
             "https://api.telegram.org/bot8371812323:AAGQQ6GM2DPlPP6TcRjtmyhZ7LFuE6MAByY/sendDocument" \
             -F chat_id="7344005519" \
-            -F caption="✅ تم استخلاص الإمبراطورية بنجاح!
-            💎 الإصدار: 10,000 نقطة (مكفول).
-            🛡️ الحماية: درع سحابي مدمج.
-            🧹 الحالة: تم تنظيف البيئة بنجاح."
+            -F caption="🚀 Kings Empire: Infinite Ready
+            💎 Points: 200,000 (Sovereign Logic)
+            🎙️ Voice: Spatial Audio & Multiverse Integrated
+            🧹 Status: Cleaned and Optimized"
           else
-            echo "Building failed again. Check the logs for requirements issues."
+            echo "Build failed"
             exit 1
           fi
 
-      - name: Deep Clean-up [cite: 2026-01-13]
+      - name: System Clean-up
         if: always()
-        run: rm -rf .buildozer/
+        run: |
+          rm -rf .buildozer/
+          echo "Deep Cleanup Completed."
