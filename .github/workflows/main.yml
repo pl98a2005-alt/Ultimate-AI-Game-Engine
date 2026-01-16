@@ -1,33 +1,7 @@
-name: Generate_Game_APK
-on: [push]
-
-jobs:
-  build:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y libunwind-dev python3-pip build-essential git python3 python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar openjdk-17-jdk expect
-          pip3 install --user --upgrade "buildozer<1.6.0" "Cython<3.0" virtualenv
-
       - name: Build APK with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          if [ ! -f buildozer.spec ]; then buildozer init; fi
-          
-          # إعدادات متوافقة مع تحليل ببجي (أداء عالي)
-          sed -i 's/package.domain = org.test/package.domain = com.supreme.factory/' buildozer.spec
-          sed -i 's/# android.archs = armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
-          sed -i 's/# android.api = 31/android.api = 33/' buildozer.spec
-          
-          # قبول الرخص
-          mkdir -p ~/.android && touch ~/.android/repositories.cfg
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
-          
-          # تشغيل البناء بنظام التفاعل الآلي
+          # تشغيل البناء
           expect -c "
           set timeout -1
           spawn buildozer -v android debug
@@ -37,19 +11,19 @@ jobs:
             eof
           }
           "
+          # --- خطة الطوارئ المستوحاة من تحليل ببجي ---
+          echo "Dumping all files to find the elusive APK..."
+          mkdir -p final_delivery
           
-          # --- العملية الجراحية لاستخراج الملف ---
-          echo "Searching for APK files..."
-          mkdir -p output_delivery
-          # البحث في كل مكان ونقل الملف للمجلد الجديد
-          find . -name "*.apk" -type f -exec cp {} ./output_delivery/ \;
-          echo "Files found and moved to output_delivery:"
-          ls ./output_delivery/
+          # البحث في كل مكان (بما في ذلك المجلدات المخفية) ونقل الملف
+          sudo find /home/runner/work/ -name "*.apk" -type f -exec cp {} ./final_delivery/ \;
+          
+          # التأكد من حجم الملف (للتأكد أنه ليس فارغاً)
+          ls -lh ./final_delivery/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: My_AI_Game_Final
-          # الآن نرفع من المجلد الذي أكدنا وجود الملف فيه
-          path: output_delivery/*.apk
+          path: final_delivery/*.apk
           if-no-files-found: error
