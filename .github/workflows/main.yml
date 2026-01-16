@@ -5,16 +5,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # تحديث للنسخة الرابعة
+      - uses: actions/checkout@v4
 
       - name: Build with Buildozer
-        uses: ArtemSerebrenninkov/buildozer-action@v1.6.1 # نسخة محددة ومستقرة
+        uses: herberth-amaral/buildozer-action@master
         with:
           command: debug
-          buildozer_version: master
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4 # تحديث للنسخة الرابعة لحل مشكلة Failure
+        uses: actions/upload-artifact@v4
         with:
           name: My_AI_Game_Final
           path: bin/*.apk
