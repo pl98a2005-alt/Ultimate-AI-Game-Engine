@@ -18,31 +18,29 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Buildozer
+      - name: Install Critical Build Tools
         run: |
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
           echo "/home/runner/.local/bin" >> $GITHUB_PATH
 
-      - name: Force Locate & Link SDK (Absolute Fix)
+      - name: Pre-emptively Build Android Folders
         run: |
-          # البحث عن مكان الـ sdkmanager الحقيقي في السيرفر
-          SDK_PATH=$(find $ANDROID_HOME -name "sdkmanager" | head -n 1)
-          SDK_BIN_DIR=$(dirname "$SDK_PATH")
+          # إنشاء هيكل المجلدات الذي يصر بيلدوزر على استخدامه
+          mkdir -p .buildozer/android/platform/android-sdk/cmdline-tools/latest
+          mkdir -p .buildozer/android/platform/android-sdk/licenses
           
-          echo "Found sdkmanager at: $SDK_PATH"
+          # نسخ الرخص من النظام إلى داخل المجلد المحلي فوراً
+          cp -r $ANDROID_HOME/licenses/* .buildozer/android/platform/android-sdk/licenses/ || true
           
-          # ربط المسار بالنظام لكي يراه بيلدوزر
-          mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
-          ln -s "$SDK_PATH" ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
-          
-          # قبول الرخص باستخدام المسار الكامل المكتشف
-          yes | "$SDK_PATH" --sdk_root=$ANDROID_HOME --licenses || true
+          # ربط أدوات النظام بالمجلد المحلي لخداع البرنامج
+          ln -s $ANDROID_HOME/cmdline-tools/latest/bin .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+          ln -s $ANDROID_HOME/platform-tools .buildozer/android/platform/android-sdk/platform-tools
 
-      - name: Generate Core Engine (Φ)
+      - name: Create Sovereign Source (Φ)
         run: |
           echo "from kivy.app import App; from kivy.uix.label import Label
           class SovereignApp(App):
-              def build(self): return Label(text='Φ SYSTEM LIVE', font_size='50sp')
+              def build(self): return Label(text='Φ SYSTEM READY', font_size='50sp')
           SovereignApp().run()" > main.py
 
           echo "[app]
@@ -59,14 +57,15 @@ jobs:
           android.archs = arm64-v8a
           log_level = 2" > buildozer.spec
 
-      - name: Start Final Build
+      - name: Ultimate Build Execution
         run: |
-          # إجبار بيلدوزر على استخدام SDK النظام الجاهز
-          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          # إجبار البرنامج على قبول كل شيء آلياً
+          export APP_ANDROID_ACCEPT_SDK_LICENSE=1
+          export ANDROID_SDK_ROOT=$HOME/work/Ultimate-AI-Game-Engine/Ultimate-AI-Game-Engine/.buildozer/android/platform/android-sdk
           buildozer -v android debug
 
-      - name: Capture Sovereign APK
+      - name: Upload Sovereign Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Final-APK
+          name: Sovereign-Success
           path: bin/*.apk
