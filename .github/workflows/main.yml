@@ -17,12 +17,15 @@ jobs:
         with:
           python-version: '3.10'
 
+      # 👑 سحق المربعات: تحميل الخط العربي ودمجه آلياً
+      - name: Inject Arabic Fonts
+        run: |
+          curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
+
       - name: Install Core & Cython Fix
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
-          sudo update-java-alternatives --set $(update-java-alternatives -l | grep java-1.17 | awk '{print $1}')
-          # 👑 تثبيت نسخة Cython المتوافقة حصراً لمنع خطأ "long"
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
       - name: Forced SDK & NDK Purge
@@ -30,51 +33,22 @@ jobs:
           rm -rf .buildozer bin
           export SDK_DIR=$HOME/sovereign_tools
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          
-          # 1. بناء الهيكل الملكي
           mkdir -p $SDK_DIR/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $SDK_DIR/cmdline-tools
           mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
-          
-          # 2. الخداع الهيكلي الكامل
-          mkdir -p $SDK_DIR/tools/bin
-          cp -r $SDK_DIR/cmdline-tools/latest/* $SDK_DIR/tools/ 2>/dev/null || true
-          cp $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-          
-          # 3. تثبيت المكونات وقبول التراخيص
-          export PATH=$SDK_DIR/cmdline-tools/latest/bin:$SDK_DIR/tools/bin:$JAVA_HOME/bin:$PATH
+          export PATH=$SDK_DIR/cmdline-tools/latest/bin:$JAVA_HOME/bin:$PATH
           yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
-          sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653" "platform-tools"
-
-          # 4. تعديل الـ Spec ومنع التحديثات الخارجية
+          sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+          
+          # تعديل الـ Spec آلياً للمسارات الجديدة
           sed -i "s|^#\? \?android.sdk_path =.*|android.sdk_path = $SDK_DIR|" buildozer.spec
           sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = $SDK_DIR/ndk/25.2.9519653|" buildozer.spec
-          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = True|" buildozer.spec
-
-          # 5. 👑 سحق تضارب NDK 27 (الضربة القاضية)
-          unset ANDROID_NDK_HOME
-          unset ANDROID_NDK
-          export ANDROID_HOME=$SDK_DIR
-          export ANDROID_SDK_ROOT=$SDK_DIR
-          export ANDROID_NDK_ROOT=$SDK_DIR/ndk/25.2.9519653
           
-          # انطلاق البناء مع Log Level 2 لرؤية كل التفاصيل
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Sovereign Factory (Artifacts)
-        if: success()
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Engine-V114
+          name: Sovereign-Final-Build
           path: bin/*.apk
-
-      - name: Sovereign Delivery to Telegram
-        if: success()
-        run: |
-          APK_FILE=$(find bin/ -name "*.apk" | head -n 1)
-          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F "document=@$APK_FILE" \
-               -F "caption=👑 النصر النهائي! تم إصلاح المترجم والـ NDK. النسخة 114 جاهزة." \
-               https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
