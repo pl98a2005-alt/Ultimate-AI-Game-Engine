@@ -23,34 +23,40 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Sovereign Force Build
+      - name: Force Fix SDK Path and Build
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
           ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.3.13750724
         run: |
-          # تنظيف البيئة لضمان عدم وجود ملفات معطوبة
-          rm -rf .buildozer
+          # 1. إنشاء المجلد الذي يبحث عنه Buildozer وتوصيله بالأداة الحقيقية
+          mkdir -p $ANDROID_HOME/tools/bin
+          # استخدام المسار الفعلي لأداة sdkmanager في سيرفرات 2026
+          ln -s /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
           
-          # قبول التراخيص السيادية
+          # 2. إضافة المسار للمتغيرات البيئية للجلسة الحالية
+          export PATH=$PATH:/usr/local/lib/android/sdk/cmdline-tools/latest/bin
+          
+          # 3. قبول التراخيص يدوياً
           yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
           
-          # بناء الـ APK باستخدام إعدادات السيرفر المباشرة
+          # 4. تنظيف المحاولات الفاشلة وبدء البناء
+          rm -rf .buildozer
           buildozer -v android debug
         continue-on-error: false
 
-      - name: Send to Telegram
+      - name: Deliver to Telegram
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف لخدمة مؤقتة للحصول على رابط QR
+          # رفع الملف والحصول على رابط للـ QR
           DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
-          # إرسال الملف والـ QR إلى تليجرام
+          # إرسال الملف والـ QR
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 تمت السيادة! المصنع جاهز للتحميل." \
+               -F "caption=👑 السيادة تحققت! المصنع بين يديك الآن." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التثبيت السريع"
+               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 مسح للتثبيت السريع"
