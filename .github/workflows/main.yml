@@ -17,37 +17,38 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Critical Dependencies
+      - name: Install System Core
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade "buildozer>=1.5.0" cython virtualenv
 
-      - name: Ultimate Android Environment Setup
+      - name: Sovereign Tools Alignment
         run: |
           rm -rf .buildozer bin
           
-          # 1. إعداد الـ SDK في مكان مستقل تماماً
+          # 1. إعداد الـ SDK بهيكلية 2026
           mkdir -p $HOME/android_sdk/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $HOME/android_sdk/cmdline-tools
           mv $HOME/android_sdk/cmdline-tools/cmdline-tools $HOME/android_sdk/cmdline-tools/latest
           
-          # 2. تحميل النسخ المتوافقة (API 33 و NDK 25b)
+          # 2. 👑 جسر القوة: ربط المسار القديم بالجديد لإرضاء Buildozer
+          mkdir -p $HOME/android_sdk/tools/bin
+          ln -sf $HOME/android_sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android_sdk/tools/bin/sdkmanager
+          ln -sf $HOME/android_sdk/cmdline-tools/latest/bin/avdmanager $HOME/android_sdk/tools/bin/avdmanager
+          
+          # 3. قبول التراخيص وتحميل الـ NDK المتوافق
           export PATH=$PATH:$HOME/android_sdk/cmdline-tools/latest/bin
           yes | sdkmanager --sdk_root=$HOME/android_sdk --licenses || true
-          sdkmanager --sdk_root=$HOME/android_sdk "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653" "platform-tools"
+          sdkmanager --sdk_root=$HOME/android_sdk "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
           
-          # 3. 👑 حقن الإعدادات الذهبية في buildozer.spec
-          # سنقوم بضبط النسخ بدقة داخل الملف لضمان عدم حدوث تعارض
+          # 4. حقن الإعدادات في buildozer.spec
           sed -i 's|^#\? \?android.sdk_path =.*|android.sdk_path = /home/runner/android_sdk|' buildozer.spec
           sed -i 's|^#\? \?android.ndk_path =.*|android.ndk_path = /home/runner/android_sdk/ndk/25.2.9519653|' buildozer.spec
-          sed -i 's|^#\? \?android.api =.*|android.api = 33|' buildozer.spec
-          sed -i 's|^#\? \?android.minapi =.*|android.minapi = 21|' buildozer.spec
-          sed -i 's|^#\? \?android.ndk =.*|android.ndk = 25b|' buildozer.spec
           sed -i 's|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|' buildozer.spec
           
-          # 4. تصفير المتغيرات وتشغيل البناء
+          # 5. تشغيل البناء مع تصفير الذاكرة لضمان السيادة
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           env -u ANDROID_HOME -u ANDROID_SDK_ROOT -u ANDROID_NDK_HOME buildozer -v android debug
         continue-on-error: false
@@ -60,5 +61,5 @@ jobs:
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 السيادة تحققت! تم استخراج الـ APK بنجاح." \
+               -F "caption=👑 نصرٌ مبين! تطبيقك جاهز للاستخدام يا ملك." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
