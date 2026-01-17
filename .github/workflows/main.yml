@@ -23,43 +23,53 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk wget
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      # 👑 حقن الأدوات يدوياً لتجنب خطأ "read of closed file"
-      - name: Sovereign Toolchain Injection
+      # 👑 المرحلة الكبرى: بناء الهيكل الكامل للـ SDK والـ NDK يدوياً
+      - name: Sovereign Toolchain Reconstruction
         run: |
-          # 1. إنشاء المجلدات المطلوبة
+          # 1. تعريف المسارات الأساسية
           PLATFORM_DIR="$HOME/.buildozer/android/platform"
-          mkdir -p $PLATFORM_DIR
+          SDK_DIR="$PLATFORM_DIR/android-sdk"
+          NDK_DIR="$PLATFORM_DIR/android-ndk-r25.2.9519653"
+          
+          mkdir -p $SDK_DIR/cmdline-tools
+          mkdir -p $NDK_DIR
           
           # 2. تحميل الخط العربي
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # 3. تحميل الـ NDK R25b يدوياً (wget أكثر استقراراً بمراحل)
-          echo "Downloading NDK..."
-          wget -q -c --tries=15 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip
-          # نقله للمسار المتوقع بالضبط في الـ Log الخاص بك
-          mv android-ndk-r25b $PLATFORM_DIR/android-ndk-r25.2.9519653
+          # 3. تحميل وحقن الـ NDK (مستقر)
+          if [ ! -d "$NDK_DIR/toolchains" ]; then
+            echo "Downloading NDK..."
+            wget -q -c --tries=15 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+            unzip -q android-ndk-r25b-linux.zip
+            cp -r android-ndk-r25b/* $NDK_DIR/
+          fi
           
-          # 4. تحميل الـ SDK Command Line Tools
-          echo "Downloading SDK Tools..."
+          # 4. تحميل وحقن الـ SDK Command Line Tools (حل مشكلة sdkmanager)
+          echo "Fixing SDK Manager Structure..."
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          mkdir -p $PLATFORM_DIR/android-sdk/cmdline-tools
-          unzip -q commandlinetools-linux-9477386_latest.zip -d $PLATFORM_DIR/android-sdk/cmdline-tools
-          mv $PLATFORM_DIR/android-sdk/cmdline-tools/cmdline-tools $PLATFORM_DIR/android-sdk/cmdline-tools/latest
+          unzip -q commandlinetools-linux-9477386_latest.zip -d $SDK_DIR/cmdline-tools
+          # الهيكل المتوقع: cmdline-tools/latest/bin/sdkmanager
+          mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
+          
+          # 5. تنزيل Build Tools و Platforms اللازمة
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "platform-tools"
 
       - name: Build Execution
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$PATH:$HOME/.local/bin
           
-          # إجبار Buildozer على قبول التراخيص ورؤية المسارات المحقونة
+          # تعديل الـ Spec برمجياً ليتوافق مع الهيكل اليدوي
           sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
+          sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = False|" buildozer.spec
           
-          # تشغيل البناء! لن يحاول تحميل NDK الآن لأنه سيجده في مكانه
+          # تشغيل البناء
           buildozer -v android debug
 
-      - name: Upload Final APK
+      - name: Upload Sovereign APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Success-Build
+          name: Sovereign-Final-Build
           path: bin/*.apk
