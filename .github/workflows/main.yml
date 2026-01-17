@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest # استخدام أحدث نسخة مستقرة
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -21,23 +21,28 @@ jobs:
       - name: Install Buildozer
         run: |
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
-          # إضافة مسار التثبيت للبيئة
           echo "/home/runner/.local/bin" >> $GITHUB_PATH
 
-      - name: Link Pre-installed SDK (The Time Saver)
+      - name: Force Locate & Link SDK (Absolute Fix)
         run: |
-          # بدلاً من التحميل، سنقوم بربط بيلدوزر بـ SDK السيرفر الجاهز
-          mkdir -p ~/.buildozer/android/platform/
-          ln -s $ANDROID_HOME ~/.buildozer/android/platform/android-sdk
+          # البحث عن مكان الـ sdkmanager الحقيقي في السيرفر
+          SDK_PATH=$(find $ANDROID_HOME -name "sdkmanager" | head -n 1)
+          SDK_BIN_DIR=$(dirname "$SDK_PATH")
           
-          # قبول الرخص في SDK النظام
-          yes | sdkmanager --licenses
+          echo "Found sdkmanager at: $SDK_PATH"
+          
+          # ربط المسار بالنظام لكي يراه بيلدوزر
+          mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+          ln -s "$SDK_PATH" ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+          
+          # قبول الرخص باستخدام المسار الكامل المكتشف
+          yes | "$SDK_PATH" --sdk_root=$ANDROID_HOME --licenses || true
 
-      - name: Generate Engine Files
+      - name: Generate Core Engine (Φ)
         run: |
           echo "from kivy.app import App; from kivy.uix.label import Label
           class SovereignApp(App):
-              def build(self): return Label(text='Φ SYSTEM ONLINE')
+              def build(self): return Label(text='Φ SYSTEM LIVE', font_size='50sp')
           SovereignApp().run()" > main.py
 
           echo "[app]
@@ -49,18 +54,19 @@ jobs:
           requirements = python3,kivy
           orientation = portrait
           android.accept_sdk_license = True
-          android.api = 33
+          android.api = 31
           android.minapi = 21
           android.archs = arm64-v8a
           log_level = 2" > buildozer.spec
 
-      - name: Build APK
+      - name: Start Final Build
         run: |
-          # الآن سيبدأ البناء فوراً دون تحميل SDK
+          # إجبار بيلدوزر على استخدام SDK النظام الجاهز
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
           buildozer -v android debug
 
-      - name: Upload Result
+      - name: Capture Sovereign APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Success-APK
+          name: Sovereign-Final-APK
           path: bin/*.apk
