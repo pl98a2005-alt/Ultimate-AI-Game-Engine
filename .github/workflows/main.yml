@@ -12,15 +12,22 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Architecture Tools
+      - name: System Pre-Configuration
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk libltdl-dev
+          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Generate Sovereign Files
+      - name: Force Accept Android Licenses
         run: |
-          # 1. إنشاء ملف الواجهة والذكاء الاصطناعي (Φ)
+          # تثبيت أدوات الرخص وقبولها آلياً قبل بدء البناء
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
+
+      - name: Generate Sovereign Core
+        run: |
+          # إنشاء الملفات الملكية بشعار Φ
           echo "
           import os, json, requests
           from kivy.app import App
@@ -66,7 +73,6 @@ jobs:
           SovereignArchitect().run()
           " > main.py
 
-          # 2. إنشاء ملف الإعدادات (Spec) - نسخة مبسطة لضمان المرور
           echo "
           [app]
           title = Game Architect Φ
@@ -79,20 +85,18 @@ jobs:
           orientation = portrait
           android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
           android.accept_sdk_license = True
+          android.archs = arm64-v8a
           android.api = 31
           android.minapi = 21
-          android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653
-          android.archs = arm64-v8a
           log_level = 2
           " > buildozer.spec
 
-      - name: Build Sovereign Factory APK
+      - name: Execution
         run: |
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
-          # استخدام المسار المباشر لـ buildozer وتجنب الأنابيب المكسورة
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Deliver APK Artifact
+      - name: Deliver Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Sovereign-Architect-Phi-Final
