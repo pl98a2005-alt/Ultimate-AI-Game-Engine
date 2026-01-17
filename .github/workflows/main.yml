@@ -6,59 +6,69 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      - name: Install Pure Core Tools
+      - name: Install Tools
         run: |
           sudo apt-get update
-          # تثبيت الأدوات البرمجية الأساسية فقط لتجنب تعارض الحزم
           sudo apt-get install -y build-essential git python3-dev zip unzip
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Inject AI Architect Brain
+      - name: Create Final Main.py
         run: |
-          rm -f buildozer.spec
-          # إنشاء تطبيق المهندس المبرمج (الواجهة الملكية)
           echo "
           from kivy.app import App
           from kivy.uix.boxlayout import BoxLayout
           from kivy.uix.textinput import TextInput
           from kivy.uix.button import Button
           from kivy.uix.label import Label
-          from kivy.core.window import Window
+          import os, json, datetime
 
           class ArchitectApp(App):
               def build(self):
-                  Window.clearcolor = (0, 0, 0, 1)
+                  self.vault = 'ai_experience_vault.json'
+                  self.setup_vault()
+                  
                   layout = BoxLayout(orientation='vertical', padding=20, spacing=10)
-                  layout.add_widget(Label(text='👑 المبرمج الذكي - AI Architect', font_size='24sp', color=(1, 0.8, 0, 1)))
-                  self.input = TextInput(hint_text='ادمج ببجي وكود... صف لعبتك هنا', multiline=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
+                  self.status = Label(text='👑 المبرمج الذكي: مستوى الخبرة 1', font_size='18sp', color=(1, 0.8, 0, 1))
+                  self.chat = TextInput(text='أهلاً بك. المهندس جاهز لبرمجة دمج ببجي وكود...', readonly=True, background_color=(0.1,0.1,0.1,1), foreground_color=(1,1,1,1))
+                  self.input = TextInput(hint_text='اصف اللعبة هنا...', multiline=True, size_hint_y=0.4)
+                  
+                  btn = Button(text='بدء البرمجة والتعلم الذاتي', size_hint_y=0.2, background_color=(0, 0.5, 0.8, 1))
+                  btn.bind(on_release=self.start_logic)
+                  
+                  layout.add_widget(self.status)
+                  layout.add_widget(self.chat)
                   layout.add_widget(self.input)
-                  layout.add_widget(Button(text='بدء البرمجة والإنتاج', size_hint_y=0.2, background_color=(0, 0.4, 0.7, 1)))
+                  layout.add_widget(btn)
                   return layout
+
+              def setup_vault(self):
+                  if not os.path.exists(self.vault):
+                      with open(self.vault, 'w') as f:
+                          json.dump({'level': 1, 'last_upd': str(datetime.date.today()), 'exp': []}, f)
+
+              def start_logic(self, instance):
+                  self.chat.text += '\n\n[المهندس]: جاري تحليل طلبك... دمج ميكانيكا الألعاب وتحديث نظام الخبرة...'
+          
           ArchitectApp().run()
           " > main.py
           
-          # إعداد مواصفات الـ APK الملموس
           /home/runner/.local/bin/buildozer init
           sed -i 's/title = .*/title = AI Architect/' buildozer.spec
-          sed -i 's/package.name = .*/package.name = sovereign.ai.builder/' buildozer.spec
           sed -i 's/requirements = .*/requirements = python3,kivy/' buildozer.spec
           sed -i 's/# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
-          # تقليل مستوى السجلات لتسريع العملية ومنع الاختناق
-          sed -i 's/# log_level = .*/log_level = 1/' buildozer.spec
 
-      - name: Build Official APK
+      - name: Build APK
         run: |
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Deliver Your APK
+      - name: Deliver APK
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Architect-Ready
+          name: AI-Architect-With-Vault
           path: bin/*.apk
