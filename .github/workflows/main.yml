@@ -15,11 +15,10 @@ jobs:
       - name: Install Core Dependencies
         run: |
           sudo apt-get update
-          # تثبيت الأدوات الضرورية فقط دون الحزم المسببة للمشاكل
           sudo apt-get install -y build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libffi-dev
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Build Architect Core and UI
+      - name: Architect Engine Setup
         run: |
           rm -f buildozer.spec
           echo "
@@ -35,7 +34,7 @@ jobs:
                   Window.clearcolor = (0, 0, 0, 1)
                   layout = BoxLayout(orientation='vertical', padding=30, spacing=15)
                   self.lbl = Label(text='👑 Sovereign Architect AI', font_size='22sp', color=(0.8, 0.7, 0, 1))
-                  self.chat_history = TextInput(text='المهندس جاهز... اصف لي طلبك بدقة', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
+                  self.chat_history = TextInput(text='المهندس جاهز للنقاش... اصف لي دمج ببجي وكود', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
                   self.user_input = TextInput(hint_text='ادمج ببجي وكود هنا...', multiline=False, size_hint=(1, 0.2))
                   btn_layout = BoxLayout(size_hint=(1, 0.15), spacing=10)
                   build_btn = Button(text='صناعة اللعبة', background_color=(0.5, 0.4, 0, 1))
@@ -53,10 +52,13 @@ jobs:
           sed -i 's/title = .*/title = AI Architect/' buildozer.spec
           sed -i 's/package.name = .*/package.name = kings.ai.engine/' buildozer.spec
           sed -i 's/requirements = .*/requirements = python3,kivy/' buildozer.spec
+          sed -i 's/# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
 
-      - name: Full APK Construction
+      - name: Full APK Construction (Final Attempt)
         run: |
-          # أمر البناء الفعلي مع تجاهل التحذيرات غير المؤثرة
+          # قبول التراخيص يدوياً قبل البدء لضمان عدم توقف الأنبوب (Broken Pipe)
+          mkdir -p ~/.android && touch ~/.android/repositories.cfg
+          export APP_ANDROID_ACCEPT_SDK_LICENSE=1
           yes | /home/runner/.local/bin/buildozer -v android debug
 
       - name: Deliver Sovereign APK
