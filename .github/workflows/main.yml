@@ -26,45 +26,32 @@ jobs:
       - name: Sovereign Tools Alignment
         run: |
           rm -rf .buildozer bin
-          # 1. بناء هيكل الـ SDK المحلي
+          # 1. تثبيت الـ SDK والـ NDK المستقل
           mkdir -p $HOME/android_sdk/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $HOME/android_sdk/cmdline-tools
           mv $HOME/android_sdk/cmdline-tools/cmdline-tools $HOME/android_sdk/cmdline-tools/latest
           
-          # 2. إنشاء جسور المسارات
-          mkdir -p $HOME/android_sdk/tools/bin
-          ln -sf $HOME/android_sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android_sdk/tools/bin/sdkmanager
-          
-          # 3. قبول التراخيص يدوياً وحقنها
           export PATH=$PATH:$HOME/android_sdk/cmdline-tools/latest/bin
           mkdir -p $HOME/android_sdk/licenses
           printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303\n24333f8a63b6825ea0c55260223df90129d33370" > $HOME/android_sdk/licenses/android-sdk-license
           yes | sdkmanager --sdk_root=$HOME/android_sdk --licenses || true
-          
-          # 4. تثبيت المكونات الضرورية
           sdkmanager --sdk_root=$HOME/android_sdk "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
 
-          # 5. تنظيف ملف الـ Spec من أي مسارات خاطئة وحقن المسار الصحيح
+          # 2. حقن المسارات في الملف
           sed -i 's|^#\? \?android.sdk_path =.*|android.sdk_path = /home/runner/android_sdk|' buildozer.spec
           sed -i 's|^#\? \?android.ndk_path =.*|android.ndk_path = /home/runner/android_sdk/ndk/25.2.9519653|' buildozer.spec
-          sed -i 's|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|' buildozer.spec
 
-          # 6. السيادة: تصفير المتغيرات القديمة وتشغيل البناء
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          # إزالة أي تأثير لـ Android SDK الموجود مسبقاً في السيرفر
+          # 3. 👑 عملية التصفير السيادي (Sovereign Purge)
+          # نمسح كل المتغيرات التي تفرضها GitHub بالقوة
           unset ANDROID_HOME
           unset ANDROID_SDK_ROOT
-          /home/runner/.local/bin/buildozer -v android debug
-        continue-on-error: false
-
-      - name: Deliver to Telegram
-        if: success()
-        run: |
-          APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # نستخدم رابطاً أكثر استقراراً للرفع
-          DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
+          unset ANDROID_NDK_HOME
+          unset ANDROID_NDK_ROOT
           
-          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 نصرٌ مبين! المهندس أصبح حقيقة. جاري التنزيل السيادي بلا فجوات." \
-               https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
+          # فرض المسارات الجديدة في بيئة العمل الحالية فقط
+          export ANDROID_HOME=$HOME/android_sdk
+          export ANDROID_NDK_HOME=$HOME/android_sdk/ndk/25.2.9519653
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          
+          /home/runner/.local/bin/buildozer -v android debug
