@@ -1,21 +1,26 @@
 [app]
-title = Game Architect Φ
-package.name = sovereign.phi.architect
+title = Sovereign Engine
+package.name = sovereign.phi
 package.domain = org.king
-source.dir = .
-source.include_exts = py,png,jpg,kv,json
-version = 1.0.0
-requirements = python3,kivy,requests,urllib3,certifi,idna
 
-# أيقونة التطبيق (O بوسطها شخطة)
+# جودة الجرافيك والفيزياء (دعم OpenGL 3 لتنافس ببجي)
+android.arch = arm64-v8a
+android.api = 33
+android.minapi = 21
+
+# المتطلبات البرمجية (المحركات التي طلبناها)
+requirements = python3,kivy,requests,urllib3
+
+# الصلاحيات (مهمة جداً للـ QR والـ OBB)
+android.permissions = INTERNET, CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+
+# إعدادات الشاشة (مثل الألعاب العالمية)
 orientation = portrait
 fullscreen = 1
-android.archs = arm64-v8a, armeabi-v7a
-android.allow_backup = True
 
-# الصلاحيات المطلوبة للتحميل الداخلي للموارد
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+# أيقونة التطبيق (سنغيرها لاحقاً بشعار السيادة)
+icon.filename = %(source.dir)s/icon.png
 
-# قبول التراخيص تلقائياً
-android.accept_sdk_license = True
+[buildozer]
 log_level = 2
+warn_on_root = 1
