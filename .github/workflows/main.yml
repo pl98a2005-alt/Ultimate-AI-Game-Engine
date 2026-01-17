@@ -23,13 +23,25 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Sovereign Clean & Build
+      - name: Manual SDK Setup & Build
         run: |
-          # 1. تنظيف شامل لأي مخلفات سابقة
+          # 1. تنظيف شامل
           rm -rf .buildozer bin
           
-          # 2. بناء التطبيق (سيقوم بيلدوزر بتحميل الأدوات المتوافقة تلقائياً)
-          # ملاحظة: أزلنا تحديد المسارات يدوياً لنترك للمحرك حرية اختيار ما يناسبه
+          # 2. تحميل أدوات الأندرويد يدوياً لكسر حاجز المسارات
+          mkdir -p .android-sdk/cmdline-tools
+          curl -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q sdk.zip -d .android-sdk/cmdline-tools
+          mv .android-sdk/cmdline-tools/cmdline-tools .android-sdk/cmdline-tools/latest
+          
+          # 3. تحديث المسارات للمحرك
+          export ANDROID_HOME=$GITHUB_WORKSPACE/.android-sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          
+          # 4. قبول التراخيص
+          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
+          
+          # 5. تشغيل البناء السيادي
           buildozer -v android debug
         continue-on-error: false
 
@@ -37,15 +49,15 @@ jobs:
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف للحصول على رابط للـ QR
+          # رفع الملف والحصول على رابط للـ QR
           UPLOAD_DATA=$(curl -F "file=@$APK_PATH" https://file.io)
           DOWNLOAD_URL=$(echo $UPLOAD_DATA | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           # إرسال الملف والـ QR إلى تليجرام
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 السيادة تحققت يا ملك! المصنع جاهز." \
+               -F "caption=👑 السيادة تحققت! المصنع بين يديك الآن." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التثبيت السريع"
+               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 مسح للتثبيت السريع"
