@@ -26,32 +26,37 @@ jobs:
       - name: Sovereign Tools Alignment
         run: |
           rm -rf .buildozer bin
-          # 1. تثبيت الـ SDK والـ NDK المستقل
+          # 1. تثبيت الـ SDK بهيكلية واضحة
           mkdir -p $HOME/android_sdk/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $HOME/android_sdk/cmdline-tools
           mv $HOME/android_sdk/cmdline-tools/cmdline-tools $HOME/android_sdk/cmdline-tools/latest
           
+          # 2. 👑 جسر السيادة المزدوج (Double Link)
+          # نقوم بإنشاء المسار الذي يطالب به السجل (tools/bin)
+          mkdir -p $HOME/android_sdk/tools/bin
+          cp $HOME/android_sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android_sdk/tools/bin/sdkmanager
+          cp $HOME/android_sdk/cmdline-tools/latest/bin/avdmanager $HOME/android_sdk/tools/bin/avdmanager
+          chmod +x $HOME/android_sdk/tools/bin/*
+          
+          # 3. قبول التراخيص (Force)
           export PATH=$PATH:$HOME/android_sdk/cmdline-tools/latest/bin
           mkdir -p $HOME/android_sdk/licenses
-          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303\n24333f8a63b6825ea0c55260223df90129d33370" > $HOME/android_sdk/licenses/android-sdk-license
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303" > $HOME/android_sdk/licenses/android-sdk-license
           yes | sdkmanager --sdk_root=$HOME/android_sdk --licenses || true
+          
+          # 4. تثبيت المكونات
           sdkmanager --sdk_root=$HOME/android_sdk "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
 
-          # 2. حقن المسارات في الملف
+          # 5. تطهير المتغيرات وإعادة حقنها
           sed -i 's|^#\? \?android.sdk_path =.*|android.sdk_path = /home/runner/android_sdk|' buildozer.spec
           sed -i 's|^#\? \?android.ndk_path =.*|android.ndk_path = /home/runner/android_sdk/ndk/25.2.9519653|' buildozer.spec
-
-          # 3. 👑 عملية التصفير السيادي (Sovereign Purge)
-          # نمسح كل المتغيرات التي تفرضها GitHub بالقوة
+          
           unset ANDROID_HOME
           unset ANDROID_SDK_ROOT
           unset ANDROID_NDK_HOME
-          unset ANDROID_NDK_ROOT
-          
-          # فرض المسارات الجديدة في بيئة العمل الحالية فقط
           export ANDROID_HOME=$HOME/android_sdk
-          export ANDROID_NDK_HOME=$HOME/android_sdk/ndk/25.2.9519653
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           
+          # 6. انطلاق البناء
           /home/runner/.local/bin/buildozer -v android debug
