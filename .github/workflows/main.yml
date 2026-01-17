@@ -1,46 +1,25 @@
-name: SOVEREIGN_STATION_AUTO_BUILD
-on: [push]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    container:
-      image: kivy/buildozer:latest # استخدام بيئة الاندرويد الرسمية
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate Sovereign Files
-        run: |
-          # التأكد من وجود ملفات التشغيل الأساسية
-          if [ ! -f main.py ]; then
-            echo "from kivy.app import App; from kivy.uix.label import Label; 
-          class Sovereign(App):
-              def build(self): return Label(text='Φ SYSTEM LIVE')
-          Sovereign().run()" > main.py
-          fi
-
-      - name: Build Android APK
-        run: |
-          # قبول الرخص والبناء داخل الحاوية
-          yes | buildozer -v android debug
-
       - name: Process and Send to Telegram
         run: |
-          # 1. العثور على ملف الـ APK
+          # 1. تثبيت الأدوات الناقصة (curl و jq) داخل السيرفر
+          sudo apt-get update && sudo apt-get install -y curl jq
+          
+          # 2. العثور على ملف الـ APK
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
           
-          # 2. رفع الملف للحصول على رابط مباشر (باستخدام تحويل الرابط لـ QR)
-          DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
+          # 3. رفع الملف للحصول على رابط مباشر
+          # ملاحظة: استخدمنا خدمة bashupload كبديل أسرع للروابط المباشرة
+          DOWNLOAD_URL=$(curl -T "$APK_PATH" https://bashupload.com/$(basename "$APK_PATH") | grep -o 'https://bashupload.com/[^ ]*')
+          
+          # 4. توليد QR Code
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
-          # 3. إرسال الملف مباشرة إلى تليجرام
+          # 5. إرسال الملف مباشرة إلى تليجرام
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-          -F "caption=👑 يا ملك، تم بناء النسخة السيادية بنجاح! 
-          📦 الملف مرفق أدناه للتثبيت المباشر." \
+          -F "caption=👑 يا ملك، تم بناء المصنع بنجاح! 📦" \
           https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
 
-          # 4. إرسال الـ QR Code للتثبيت السريع عبر الكاميرا
+          # 6. إرسال الـ QR Code
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
           -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
           -d photo="$QR_URL" \
-          -d caption="📸 صور هذا الكود بهاتف آخر أو بماسح التطبيق للتثبيت الفوري!"
+          -d caption="📸 مسح التثبيت السريع للنسخة السيادية"
