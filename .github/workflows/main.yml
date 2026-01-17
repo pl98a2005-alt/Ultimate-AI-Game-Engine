@@ -17,51 +17,57 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+      - name: Install System Core
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk wget
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      - name: Sovereign Toolchain Reconstruction
+      - name: Sovereign Toolchain Injection
         run: |
           PLATFORM_DIR="$HOME/.buildozer/android/platform"
           SDK_DIR="$PLATFORM_DIR/android-sdk"
+          NDK_TARGET="$PLATFORM_DIR/android-ndk-r25.2.9519653"
+          
+          # 1. تنظيف أي مخلفات سابقة لضمان سيادة المسار
+          rm -rf $HOME/.buildozer/android/app
           mkdir -p $SDK_DIR/cmdline-tools
           
-          # 1. تحميل الخط العربي
+          # 2. تحميل الخط العربي
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # 2. حقن الـ NDK في المسار المطلوب بالضبط
-          NDK_TARGET="$PLATFORM_DIR/android-ndk-r25.2.9519653"
-          mkdir -p $NDK_TARGET
-          wget -q -c https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip
-          cp -r android-ndk-r25b/* $NDK_TARGET/
+          # 3. حقن الـ NDK (بشكل نظيف)
+          if [ ! -d "$NDK_TARGET" ]; then
+            wget -q -c https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+            unzip -q android-ndk-r25b-linux.zip
+            mv android-ndk-r25b $NDK_TARGET
+          fi
 
-          # 3. تحميل وإصلاح هيكل الـ SDK Manager (الجسر التقني)
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip -d $SDK_DIR/cmdline-tools
-          mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
+          # 4. حقن الـ SDK والجسر التقني
+          if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+            unzip -q commandlinetools-linux-9477386_latest.zip -d $SDK_DIR/cmdline-tools
+            mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
+            mkdir -p $SDK_DIR/tools/bin
+            ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+          fi
           
-          # 👑 الجسر: إيهام Buildozer بوجود المسار القديم
-          mkdir -p $SDK_DIR/tools/bin
-          ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-          
-          # 4. تثبيت الأدوات يدوياً لضمان عدم توقف البناء
+          # 5. قبول التراخيص يدوياً
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0"
 
       - name: Build Execution
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$PATH:$HOME/.local/bin
           
-          # تعديل الـ Spec لضمان رؤية الجسر
-          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = False|" buildozer.spec
+          # 👑 الضربة القاضية للخطأ الأخير:
+          # نمنع Buildozer من محاولة ضغط أو فحص ملفات الـ NDK داخل الـ APK
+          sed -i "s|^#\? \?android.no_byte_compile_python_optimization =.*|android.no_byte_compile_python_optimization = True|" buildozer.spec
           sed -i "s|^android.archs =.*|android.archs = arm64-v8a|" buildozer.spec
           
+          # تشغيل البناء مع تنظيف الكاش القديم لضمان عدم تكرار الخطأ
+          buildozer android clean
           buildozer -v android debug
 
       - name: Upload Sovereign APK
