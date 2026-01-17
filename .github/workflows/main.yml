@@ -1,4 +1,4 @@
-name: KINGS_EMPIRE_ULTIMATE_SUCCESS
+name: AI_GAME_ENGINE_FINAL_BUILD
 on: [push]
 
 jobs:
@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Massive Cleanup & Swap
+      - name: System Memory & Swap Setup
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt clean
@@ -16,26 +16,26 @@ jobs:
           sudo mkswap /swapfile
           sudo swapon /swapfile
 
-      - name: Install Core Tools
+      - name: Install AI Core Tools
         run: |
           sudo apt update
           sudo apt install -y python3-pip openjdk-17-jdk expect curl zip unzip
           pip3 install --user --upgrade "buildozer<1.6.0" "Cython<3.0" virtualenv
 
-      - name: Sovereign Engine Config
+      - name: Sovereign Spec Configuration
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          # حذف أي ملف قديم لمنع الخطأ المتكرر
           rm -f buildozer.spec
           buildozer init
-          sed -i 's/title = .*/title = Kings Empire Infinite/' buildozer.spec
-          sed -i 's/package.name = .*/package.name = kings_empire_infinite/' buildozer.spec
+          # إعدادات التطبيق الأساسية (المحرك)
+          sed -i 's/title = .*/title = Ultimate AI Engine/' buildozer.spec
+          sed -i 's/package.name = .*/package.name = ultimate_ai_engine/' buildozer.spec
           sed -i 's/requirements = .*/requirements = python3,kivy,requests,certifi,plyer/' buildozer.spec
           sed -i 's/android.permissions = .*/android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,CAMERA,RECORD_AUDIO,ACCESS_FINE_LOCATION,MODIFY_AUDIO_SETTINGS/' buildozer.spec
           sed -i 's/# android.archs = .*/android.archs = arm64-v8a/' buildozer.spec
           sed -i 's/# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
 
-      - name: Final Sovereign Build
+      - name: Generate AI Engine APK
         run: |
           export PATH=$PATH:$HOME/.local/bin
           expect -c "
@@ -48,16 +48,20 @@ jobs:
           }
           "
 
-      - name: Success Dispatch
+      - name: Upload AI Engine App to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Sovereign-Engine-App
+          path: bin/*.apk
+
+      - name: Telegram Dispatch (Backup)
         if: success()
         run: |
-          APK_PATH=$(find . -name "*.apk" | head -n 1)
+          APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
           if [ -n "$APK_PATH" ]; then
             curl -F document=@"$APK_PATH" \
             "https://api.telegram.org/bot8371812323:AAGQQ6GM2DPlPP6TcRjtmyhZ7LFuE6MAByY/sendDocument" \
             -F chat_id="7344005519" \
-            -F caption="🏆 تم سحق الخطأ البرمجي بنجاح!
-            👑 Kings Empire 500K Ready
-            📍 جميع الأنظمة والموافقات مفعلة.
-            🚀 السيادة التقنية في طريقها إليك."
+            -F caption="🏆 تم بناء تطبيق المحرك بنجاح!
+            📍 يمكنك تحميله من تليجرام أو من قسم Artifacts في GitHub."
           fi
