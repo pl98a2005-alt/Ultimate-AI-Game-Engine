@@ -17,47 +17,41 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+      - name: Install Critical Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
-          pip install --user --upgrade buildozer cython virtualenv
+          pip install --user --upgrade "buildozer>=1.5.0" cython virtualenv
 
-      - name: Sovereign Path Injection & Build
+      - name: Sovereign Force Build
         run: |
-          # 1. تحديد المسارات الأصلية في السيرفر
-          REAL_SDK="/usr/local/lib/android/sdk"
-          REAL_NDK="/usr/local/lib/android/sdk/ndk/27.3.13750724"
+          # تنظيف أي محاولات فاشلة سابقة
+          rm -rf .buildozer bin
           
-          # 2. 👑 الخدعة الملكية: إنشاء المجلدات التي يتوقعها Buildozer وربطها بالأدوات الحقيقية
-          sudo mkdir -p $REAL_SDK/tools/bin
-          # ربط sdkmanager الحديث بالمكان القديم الذي يبحث عنه المحرك
-          sudo ln -sf $REAL_SDK/cmdline-tools/latest/bin/sdkmanager $REAL_SDK/tools/bin/sdkmanager
+          # إعداد المسارات للوصول للأدوات الحقيقية في السيرفر
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
           
-          # 3. قبول التراخيص باستخدام المسار الحقيقي
-          yes | $REAL_SDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=$REAL_SDK --licenses || true
+          # قبول التراخيص بالقوة
+          yes | sdkmanager --licenses || true
           
-          # 4. تنظيف البيئة وبدء البناء السيادي
-          rm -rf .buildozer
+          # 🚀 إطلاق عملية البناء مع تجاهل الأخطاء الطفيفة في النسخ
           buildozer -v android debug
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.3.13750724
         continue-on-error: false
 
-      - name: Deliver to Telegram
+      - name: Send APK to Telegram
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف والحصول على رابط QR
-          DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
+          # رفع الملف والحصول على رابط سريع للـ QR
+          UPLOAD_DATA=$(curl -F "file=@$APK_PATH" https://file.io)
+          DOWNLOAD_URL=$(echo $UPLOAD_DATA | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
-          # إرسال الملف والـ QR إلى تليجرام
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 السيادة تحققت! المصنع بين يديك." \
+               -F "caption=👑 تمت السيادة بنجاح! تطبيقك جاهز." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التثبيت السريع"
+               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التحميل السريع"
