@@ -17,50 +17,33 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 🛡️ خطوة الحقن اليدوي للخط والـ NDK لتجنب أخطاء التحميل
-      - name: Manual Injection & Preparation
+      # 👑 المرحلة 1: التحميل الفولاذي (خارج Buildozer)
+      - name: Pre-Download NDK & Fonts
         run: |
-          # 1. تحميل الخط العربي فوراً
+          # تحميل الخط العربي للقضاء على المربعات
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # 2. تحميل الـ NDK يدوياً بـ wget (أداة احترافية لا تغلق الملف أثناء التحميل)
-          mkdir -p $HOME/ndk_manual
-          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip -d $HOME/ndk_manual
-          # تسجيل المسار لاستخدامه في الخطوات التالية
-          echo "NDK_PATH=$HOME/ndk_manual/android-ndk-r25b" >> $GITHUB_ENV
+          # تحميل الـ NDK باستخدام wget مع خاصية إعادة المحاولة تلقائياً
+          mkdir -p $HOME/android_tools
+          wget -c --tries=10 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip -d $HOME/android_tools
+          echo "NDK_HOME_PATH=$HOME/android_tools/android-ndk-r25b" >> $GITHUB_ENV
 
-      - name: Install Dependencies
+      - name: Install Core Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      - name: Sovereign Execution (Buildozer)
+      # 👑 المرحلة 2: تشغيل المصنع السيادي
+      - name: Run Buildozer
         run: |
-          export SDK_DIR=$HOME/sovereign_tools
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          export PATH=$PATH:$HOME/.local/bin
           
-          # إعداد الـ SDK الملكي
-          mkdir -p $SDK_DIR/cmdline-tools
-          curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q sdk.zip -d $SDK_DIR/cmdline-tools
-          mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
-          
-          export PATH=$SDK_DIR/cmdline-tools/latest/bin:$JAVA_HOME/bin:$PATH
-          yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
-          sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0"
-
-          # 👑 تعديل ملف الـ spec برمجياً لربطه بالـ NDK المحمل يدوياً
-          sed -i "s|^#\? \?android.sdk_path =.*|android.sdk_path = $SDK_DIR|" buildozer.spec
-          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = ${{ env.NDK_PATH }}|" buildozer.spec
+          # حقن المسارات في الـ Spec لمنع التحميل الفاشل
+          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = ${{ env.NDK_HOME_PATH }}|" buildozer.spec
           sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
           
-          # انطلاق البناء
-          /home/runner/.local/bin/buildozer -v android debug
-
-      - name: Sovereign Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Sovereign-Success-Build
-          path: bin/*.apk
+          # تشغيل البناء مع عرض التفاصيل الكاملة
+          buildozer -v android debug
