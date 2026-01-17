@@ -23,34 +23,32 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Isolated Environment Reconstruction
+      - name: Physical SDK Override & Build
         run: |
-          # 1. تنظيف شامل للمشروع
+          # 1. تنظيف شامل
           rm -rf .buildozer bin
           
-          # 2. إنشاء هيكل أندرويد خاص بنا تماماً بعيداً عن النظام
-          mkdir -p $GITHUB_WORKSPACE/android_storage/cmdline-tools
+          # 2. 👑 الضربة القاضية: تدمير المسار القديم واستبداله
+          # سنقوم بإنشاء هيكلية الأندرويد داخل مجلد المشروع أولاً
+          mkdir -p $GITHUB_WORKSPACE/new_sdk/cmdline-tools
           curl -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q sdk.zip -d $GITHUB_WORKSPACE/android_storage/cmdline-tools
-          mv $GITHUB_WORKSPACE/android_storage/cmdline-tools/cmdline-tools $GITHUB_WORKSPACE/android_storage/cmdline-tools/latest
+          unzip -q sdk.zip -d $GITHUB_WORKSPACE/new_sdk/cmdline-tools
+          mv $GITHUB_WORKSPACE/new_sdk/cmdline-tools/cmdline-tools $GITHUB_WORKSPACE/new_sdk/cmdline-tools/latest
           
-          # 3. إجبار Buildozer على استخدام هذا المسار عبر ملف الإعدادات مباشرة
-          # سنقوم بحقن المسار الجديد داخل buildozer.spec برمجياً لضمان عدم الخطأ
-          sed -i "s|# android.sdk_path =|android.sdk_path = $GITHUB_WORKSPACE/android_storage|g" buildozer.spec
+          # إنشاء مجلد bin الوهمي الذي يبحث عنه بيلدوزر
+          mkdir -p $GITHUB_WORKSPACE/new_sdk/tools/bin
+          ln -s $GITHUB_WORKSPACE/new_sdk/cmdline-tools/latest/bin/sdkmanager $GITHUB_WORKSPACE/new_sdk/tools/bin/sdkmanager
           
-          # 4. تعريف المسارات الضرورية للبناء
-          export PATH=$PATH:$GITHUB_WORKSPACE/android_storage/cmdline-tools/latest/bin
+          # 3. حقن المسار الجديد في ملف الإعدادات برمجياً لضمان السيطرة
+          sed -i "s|# android.sdk_path =|android.sdk_path = $GITHUB_WORKSPACE/new_sdk|g" buildozer.spec
+          sed -i "s|android.accept_sdk_license = False|android.accept_sdk_license = True|g" buildozer.spec
           
-          # 5. قبول التراخيص في البيئة الجديدة
-          yes | sdkmanager --sdk_root=$GITHUB_WORKSPACE/android_storage --licenses || true
+          # 4. قبول التراخيص يدوياً قبل الانطلاق
+          export PATH=$PATH:$GITHUB_WORKSPACE/new_sdk/cmdline-tools/latest/bin
+          yes | sdkmanager --sdk_root=$GITHUB_WORKSPACE/new_sdk --licenses || true
           
-          # 6. تشغيل البناء مع تجاهل مسارات السيرفر
-          buildozer -v android debug
-        env:
-          # تصفير متغيرات النظام لإجبار المحرك على القراءة من المجلد الجديد
-          ANDROID_HOME: ""
-          ANDROID_SDK_ROOT: ""
-          ANDROID_NDK_HOME: ""
+          # 5. تشغيل البناء مع عزل متغيرات النظام تماماً
+          env ANDROID_HOME=$GITHUB_WORKSPACE/new_sdk ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/new_sdk buildozer -v android debug
         continue-on-error: false
 
       - name: Deliver to Telegram
@@ -61,7 +59,7 @@ jobs:
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 تمت السيادة المطلقة! المصنع جاهز." \
+               -F "caption=👑 تمت السيادة! تطبيقك جاهز للاستخدام." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
