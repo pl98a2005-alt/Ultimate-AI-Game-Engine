@@ -5,28 +5,31 @@ package.domain = org.king
 source.dir = .
 version = 1.0.0
 
-# الملفات المضمنة
+# الملفات المطلوبة
 source.include_exts = py,png,jpg,kv,atlas,json
 
-# المتطلبات البرمجية
+# المكتبات البرمجية
 requirements = python3,kivy,requests,urllib3,certifi
 
-# إعدادات الشاشة
+# إعدادات الشاشة والجرافيك
 orientation = portrait
 fullscreen = 1
 
-# الصلاحيات السيادية
+# صلاحيات الوصول الكاملة (السيادة)
 android.permissions = INTERNET, CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
 
-# دعم المعالجات (التصحيح الجديد)
-android.archs = arm64-v8a, armeabi-v7a
-android.allow_backup = True
-
-# إعدادات الاندرويد
-android.api = 33
+# الربط مع أدوات GitHub الحديثة (2026)
+android.api = 34
 android.minapi = 21
+android.ndk = 27b
+android.archs = arm64-v8a
+
+# مسارات الأدوات الجاهزة في السيرفر
+android.sdk_path = /usr/local/lib/android/sdk
+android.ndk_path = /usr/local/lib/android/sdk/ndk/27.3.13750724
+
+# قبول الرخص تلقائياً
 android.accept_sdk_license = True
-android.skip_update = False
 
 [buildozer]
 log_level = 2
