@@ -17,39 +17,43 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 👑 التحميل الفولاذي: سحب الخط والـ NDK يدوياً لضمان عدم الانقطاع
-      - name: Pre-Download NDK & Arabic Fonts
-        run: |
-          # تحميل الخط العربي للقضاء على المربعات
-          curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
-          
-          # تحميل الـ NDK يدوياً بأداة wget المستقرة
-          mkdir -p $HOME/ndk_manual
-          wget -c -q --show-progress --tries=20 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip -d $HOME/ndk_manual
-          echo "NDK_PATH_STATION=$HOME/ndk_manual/android-ndk-r25b" >> $GITHUB_ENV
-
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      - name: Sovereign Build Execution
+      # 👑 الخداع الاستراتيجي: وضع الـ NDK في قلب مكان عمل Buildozer
+      - name: Strategic NDK Injection
+        run: |
+          # تحميل الخط العربي
+          curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
+          
+          # إنشاء المجلدات التي يبحث فيها Buildozer افتراضياً
+          mkdir -p .buildozer/android/platform/
+          
+          # تحميل الـ NDK يدوياً بـ wget (الفولاذي)
+          wget -c -q --show-progress --tries=15 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          
+          # فك الضغط مباشرة داخل مسار منصة الأندرويد لـ Buildozer
+          unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform/
+          
+          # إعادة تسمية المجلد ليتطابق مع ما يتوقعه Buildozer (الاسم الصارم)
+          mv .buildozer/android/platform/android-ndk-r25b .buildozer/android/platform/android-ndk-r25.2.9519653 2>/dev/null || true
+
+      - name: Run Buildozer
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$PATH:$HOME/.local/bin
           
-          # حقن المسار اليدوي للـ NDK في ملف الـ spec لتعطيل التحميل الآلي الفاشل
-          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = ${{ env.NDK_PATH_STATION }}|" buildozer.spec
-          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = True|" buildozer.spec
+          # تأكيد قبول التراخيص قبل البدء
+          yes | buildozer android p4a -- --accept-sdk-license || true
           
-          # انطلاق البناء! لن يحاول تحميل NDK الآن
+          # تشغيل البناء - الآن سيجد الـ NDK بانتظاره في المجلد ولن يحاول تحميله
           buildozer -v android debug
 
-      - name: Upload Final APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Architect-APK
+          name: Sovereign-Success-Build
           path: bin/*.apk
