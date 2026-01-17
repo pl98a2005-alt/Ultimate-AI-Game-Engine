@@ -17,43 +17,16 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      # 👑 الخداع الاستراتيجي: وضع الـ NDK في قلب مكان عمل Buildozer
-      - name: Strategic NDK Injection
+      # 👑 عملية "الاختراق الهيكلي" لوضع الـ NDK في مكانه الإجباري
+      - name: Forced NDK Injection
         run: |
-          # تحميل الخط العربي
+          # 1. تحميل الخط العربي
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # إنشاء المجلدات التي يبحث فيها Buildozer افتراضياً
-          mkdir -p .buildozer/android/platform/
-          
-          # تحميل الـ NDK يدوياً بـ wget (الفولاذي)
-          wget -c -q --show-progress --tries=15 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          
-          # فك الضغط مباشرة داخل مسار منصة الأندرويد لـ Buildozer
-          unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform/
-          
-          # إعادة تسمية المجلد ليتطابق مع ما يتوقعه Buildozer (الاسم الصارم)
-          mv .buildozer/android/platform/android-ndk-r25b .buildozer/android/platform/android-ndk-r25.2.9519653 2>/dev/null || true
-
-      - name: Run Buildozer
-        run: |
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          export PATH=$PATH:$HOME/.local/bin
-          
-          # تأكيد قبول التراخيص قبل البدء
-          yes | buildozer android p4a -- --accept-sdk-license || true
-          
-          # تشغيل البناء - الآن سيجد الـ NDK بانتظاره في المجلد ولن يحاول تحميله
-          buildozer -v android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Sovereign-Success-Build
-          path: bin/*.apk
+          # 2. إنشاء المسار
