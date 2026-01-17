@@ -23,25 +23,27 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Manual SDK Setup & Build
+      - name: Deep Fix & Build
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/.android-sdk
         run: |
-          # 1. تنظيف شامل
-          rm -rf .buildozer bin
-          
-          # 2. تحميل أدوات الأندرويد يدوياً لكسر حاجز المسارات
-          mkdir -p .android-sdk/cmdline-tools
+          # 1. إنشاء بيئة SDK معزولة ومنظمة كما يريدها المحرك تماماً
+          mkdir -p $ANDROID_HOME/cmdline-tools
           curl -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q sdk.zip -d .android-sdk/cmdline-tools
-          mv .android-sdk/cmdline-tools/cmdline-tools .android-sdk/cmdline-tools/latest
+          unzip -q sdk.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
           
-          # 3. تحديث المسارات للمحرك
-          export ANDROID_HOME=$GITHUB_WORKSPACE/.android-sdk
+          # 2. إنشاء "جسر" (Symlink) للمسار القديم الذي يبحث عنه Buildozer غباءً
+          mkdir -p $ANDROID_HOME/tools/bin
+          ln -s $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
+          
+          # 3. تحديث المسارات البيئية
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
           
-          # 4. قبول التراخيص
+          # 4. قبول التراخيص يدوياً قبل البدء
           yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
           
-          # 5. تشغيل البناء السيادي
+          # 5. تشغيل بناء المحرك السيادي
           buildozer -v android debug
         continue-on-error: false
 
@@ -49,14 +51,13 @@ jobs:
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف والحصول على رابط للـ QR
-          UPLOAD_DATA=$(curl -F "file=@$APK_PATH" https://file.io)
-          DOWNLOAD_URL=$(echo $UPLOAD_DATA | jq -r '.link')
+          # رفع الملف والحصول على رابط للـ QR عبر File.io المستقر
+          DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           # إرسال الملف والـ QR إلى تليجرام
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 السيادة تحققت! المصنع بين يديك الآن." \
+               -F "caption=👑 السيادة تحققت! المصنع جاهز." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
