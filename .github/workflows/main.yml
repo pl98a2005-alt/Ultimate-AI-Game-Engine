@@ -12,48 +12,49 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: System Architecture Prep
+      - name: System Infrastructure
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Inject Android Licenses (The Secret Key)
+      - name: Create Sovereign Directories & Permissions
         run: |
-          # صناعة مجلد الرخص وحقن الموافقة يدوياً لتخطي شاشة الانتظار
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
-          echo -e "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451e055736510d8612f9185303951\n24333f8a63b6825ea9d5513f83c28d753540c975" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "84831b9409646a918e30573bab4c9c91346d8abd" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
-          
+          # تجهيز المجلدات قبل بدء Buildozer
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          # الموافقة على رخص أندرويد بشكل استباقي وشامل
+          yes | sdkmanager --licenses || true
+
       - name: Generate Sovereign Files
         run: |
-          # كود المهندس والشعار الملكي Φ
+          # إنشاء ملف main.py (واجهة المهندس Φ)
           echo "
-          import os, requests
           from kivy.app import App
           from kivy.uix.boxlayout import BoxLayout
           from kivy.uix.textinput import TextInput
           from kivy.uix.button import Button
           from kivy.uix.label import Label
-          from kivy.clock import Clock
+          from kivy.core.window import Window
+
+          Window.clearcolor = (0.01, 0.01, 0.01, 1)
 
           class SovereignArchitect(App):
               def build(self):
-                  self.token = '8371812323:AAGQQ6GM2DPlPP6TcRjtmyhZ7LFuE6MAByY'
-                  self.chat_id = '7344005519'
-                  layout = BoxLayout(orientation='vertical', padding=20)
+                  layout = BoxLayout(orientation='vertical', padding=20, spacing=10)
                   layout.add_widget(Label(text='Φ', font_size='100sp', color=(1, 0.8, 0, 1)))
-                  self.console = TextInput(text='[المهندس]: الهيكل جاهز لبناء مواردك السحابية...', readonly=True)
+                  self.console = TextInput(text='[المهندس]: نظام الهيكل الصغير نشط. جاري تجهيز بيئة الموارد...', readonly=True)
                   layout.add_widget(self.console)
-                  btn = Button(text='بدء البناء', size_hint_y=0.2)
+                  btn = Button(text='بدء البناء الملكي', background_color=(0, 0.5, 0.8, 1))
                   layout.add_widget(btn)
                   return layout
           SovereignArchitect().run()
           " > main.py
 
+          # إنشاء ملف buildozer.spec (تصحيح مسارات الأدوات)
           echo "
           [app]
-          title = Game Architect Φ
+          title = Architect Φ
           package.name = sovereign.phi.architect
           package.domain = org.king
           source.dir = .
@@ -67,15 +68,18 @@ jobs:
           android.minapi = 21
           android.archs = arm64-v8a
           log_level = 2
+          # تفعيل نظام التحميل الداخلي لتقليل حجم الـ APK
+          android.copy_libs = 1
           " > buildozer.spec
 
-      - name: Sovereign Execution
+      - name: Build With Auto-Repair
         run: |
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
+          # الأمر التالي سيحاول البناء، وإذا فقد الـ sdkmanager سيقوم Buildozer بتحميله تلقائياً في المكان الصحيح
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Deliver Artifact
+      - name: Deliver Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Architect-Phi-Final
+          name: Sovereign-Architect-Phi-App
           path: bin/*.apk
