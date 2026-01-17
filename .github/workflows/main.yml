@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # سنستخدم نسخة مستقرة أكثر لعام 2026
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -17,23 +17,39 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Build Tools
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
-          pip install --user --upgrade "buildozer>=1.5.0" cython virtualenv
+          pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Pure Build Execution
+      - name: Extreme Isolated Build
         run: |
-          # تنظيف شامل للمخلفات
+          # 1. تنظيف شامل وجذري
           rm -rf .buildozer bin
           
-          # إجبار المحرك على تجاهل مسارات النظام المعطلة تماماً
-          export ANDROID_HOME=""
-          export ANDROID_SDK_ROOT=""
+          # 2. 👑 خدعة "المسار المستقل": سنقوم بتحميل الأدوات في مجلد مخفي في المنزل
+          mkdir -p ~/.android/sdk/cmdline-tools
+          curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q sdk.zip -d ~/.android/sdk/cmdline-tools
+          mv ~/.android/sdk/cmdline-tools/cmdline-tools ~/.android/sdk/cmdline-tools/latest
           
-          # تشغيل البناء مع رفع مستوى التقارير (Log Level 2) لنرى المشكلة بوضوح إذا فشل
+          # 3. تعديل ملف buildozer.spec برمجياً لفرض المسار الجديد
+          sed -i "s|# android.sdk_path =|android.sdk_path = /home/runner/.android/sdk|g" buildozer.spec
+          sed -i "s|android.accept_sdk_license = False|android.accept_sdk_license = True|g" buildozer.spec
+          
+          # 4. تصفير متغيرات النظام لمنع التداخل
+          export ANDROID_HOME=/home/runner/.android/sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          
+          # 5. قبول التراخيص يدوياً
+          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
+          
+          # 6. تشغيل البناء مع عزل فيزيائي
           buildozer -v android debug
+        env:
+          ANDROID_HOME: /home/runner/.android/sdk
+          ANDROID_SDK_ROOT: /home/runner/.android/sdk
         continue-on-error: false
 
       - name: Deliver to Telegram
@@ -44,8 +60,5 @@ jobs:
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 اكتمل البناء السيادي! المحرك يعمل." \
+               -F "caption=👑 السيادة تحققت! الزر الأخضر يلمع." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
-          
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 مسح للتثبيت"
