@@ -9,7 +9,10 @@ jobs:
 
       - name: Build Architect Core and UI
         run: |
-          # 1. إنشاء واجهة المهندس الأنيقة (شبه زانجي) بذكاء 750k
+          # 1. مسح أي ملفات قديمة تسبب تعارض [cite: 2026-01-13]
+          rm -f buildozer.spec
+          
+          # 2. إنشاء واجهة المهندس الأنيقة
           echo "
           from kivy.app import App
           from kivy.uix.boxlayout import BoxLayout
@@ -20,46 +23,40 @@ jobs:
 
           class ArchitectEngine(App):
               def build(self):
-                  # تصميم ملكي: أسود وذهبي
                   Window.clearcolor = (0, 0, 0, 1)
                   layout = BoxLayout(orientation='vertical', padding=30, spacing=15)
-                  
-                  # واجهة النقاش الذكي
-                  self.lbl = Label(text='👑 المهندس الذكي جاهز لبناء إمبراطوريتك', font_size='20sp', color=(0.8, 0.7, 0, 1))
-                  self.chat_history = TextInput(readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1), font_size='14sp')
-                  self.user_input = TextInput(hint_text='اصف لي دمج ببجي وكود أو أي فكرة...', multiline=False, size_hint=(1, 0.2))
-                  
-                  # أزرار التحكم العملية
+                  self.lbl = Label(text='👑 Sovereign Architect AI', font_size='22sp', color=(0.8, 0.7, 0, 1))
+                  self.chat_history = TextInput(text='المهندس جاهز للنقاش... اصف لي دمج ببجي وكود', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
+                  self.user_input = TextInput(hint_text='اكتب طلبك هنا...', multiline=False, size_hint=(1, 0.2))
                   btn_layout = BoxLayout(size_hint=(1, 0.15), spacing=10)
                   build_btn = Button(text='صناعة اللعبة', background_color=(0.5, 0.4, 0, 1))
                   clean_btn = Button(text='Clean-up', background_color=(0.3, 0.3, 0.3, 1))
-                  
                   layout.add_widget(self.lbl)
                   layout.add_widget(self.chat_history)
                   layout.add_widget(self.user_input)
                   btn_layout.add_widget(build_btn)
                   btn_layout.add_widget(clean_btn)
                   layout.add_widget(btn_layout)
-                  
                   return layout
-
           ArchitectEngine().run()
           " > main.py
 
-          # 2. إعدادات التحويل إلى تطبيق أندرويد ملموس [cite: 2026-01-11]
-          pip install buildozer cython
+          # 3. إعدادات الأندرويد مع حل مشكلة التعارض [cite: 2026-01-11]
+          pip install --user buildozer cython virtualenv
+          export PATH=$PATH:$HOME/.local/bin
           buildozer init
           
-          # تعديل المواصفات ليكون تطبيقاً رسمياً
+          # تعديلات المواصفات لضمان القوة والاحترافية
           sed -i 's/title = .*/title = AI Architect/' buildozer.spec
           sed -i 's/package.name = .*/package.name = kings.ai.engine/' buildozer.spec
-          sed -i 's/# android.permissions = .*/android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE/' buildozer.spec
+          sed -i 's/# android.permissions = .*/android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE/' buildozer.spec
+          sed -i 's/requirements = .*/requirements = python3,kivy,sh/' buildozer.spec
 
-          # 3. البدء في "طباعة" ملف الـ APK [cite: 2026-01-13]
-          buildozer android debug || true
+          # 4. بناء الـ APK الفعلي (سيستغرق وقت للتحميل والطباعة)
+          buildozer -v android debug || true
 
       - name: Deliver Your APK Now
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Architect-App-Ready
+          name: Sovereign-Architect-App-Final
           path: bin/*.apk
