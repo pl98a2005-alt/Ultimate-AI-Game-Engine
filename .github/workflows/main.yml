@@ -12,15 +12,15 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Critical Components
+      - name: Install Architecture Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk
+          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk libltdl-dev
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
       - name: Generate Sovereign Files
         run: |
-          # إنشاء ملف main.py (الواجهة والذكاء الاصطناعي)
+          # 1. إنشاء ملف الواجهة والذكاء الاصطناعي (Φ)
           echo "
           import os, json, requests
           from kivy.app import App
@@ -66,7 +66,7 @@ jobs:
           SovereignArchitect().run()
           " > main.py
 
-          # إنشاء ملف buildozer.spec (تحديث لنسخة NDK أسرع)
+          # 2. إنشاء ملف الإعدادات (Spec) - نسخة مبسطة لضمان المرور
           echo "
           [app]
           title = Game Architect Φ
@@ -79,21 +79,21 @@ jobs:
           orientation = portrait
           android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
           android.accept_sdk_license = True
-          android.archs = arm64-v8a
-          android.ndk = 25b
           android.api = 31
+          android.minapi = 21
+          android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653
+          android.archs = arm64-v8a
           log_level = 2
           " > buildozer.spec
 
-      - name: Cold Start Build
+      - name: Build Sovereign Factory APK
         run: |
-          # قبول التراخيص بطريقة لا تكسر الأنبوب البرمجي
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
-          /home/runner/.local/bin/buildozer android debug || /home/runner/.local/bin/buildozer android debug
-          # في حال فشل المرة الأولى بسبب التحميل، سيكمل في الثانية فوراً
+          # استخدام المسار المباشر لـ buildozer وتجنب الأنابيب المكسورة
+          /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Delivery
+      - name: Deliver APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Architect-Phi-App
+          name: Sovereign-Architect-Phi-Final
           path: bin/*.apk
