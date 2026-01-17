@@ -7,65 +7,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Build with Sovereign Docker Environment
+        uses: ArtemSerebrennikov/buildozer-action@v1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          buildozer_version: master
+          # هذا السطر هو مفتاح النجاح: قبول الرخص وتحديد الهدف
+          command: android debug
+          buildozer_config: buildozer.spec
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Install Critical Build Tools
+      - name: Generate Sovereign Files (If missing)
+        if: always()
         run: |
-          pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
-          echo "/home/runner/.local/bin" >> $GITHUB_PATH
+          if [ ! -f main.py ]; then
+            echo "from kivy.app import App; from kivy.uix.label import Label
+            class SovereignApp(App):
+                def build(self): return Label(text='Φ SYSTEM ACTIVE')
+            SovereignApp().run()" > main.py
+          fi
 
-      - name: Pre-emptively Build Android Folders
-        run: |
-          # إنشاء هيكل المجلدات الذي يصر بيلدوزر على استخدامه
-          mkdir -p .buildozer/android/platform/android-sdk/cmdline-tools/latest
-          mkdir -p .buildozer/android/platform/android-sdk/licenses
-          
-          # نسخ الرخص من النظام إلى داخل المجلد المحلي فوراً
-          cp -r $ANDROID_HOME/licenses/* .buildozer/android/platform/android-sdk/licenses/ || true
-          
-          # ربط أدوات النظام بالمجلد المحلي لخداع البرنامج
-          ln -s $ANDROID_HOME/cmdline-tools/latest/bin .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
-          ln -s $ANDROID_HOME/platform-tools .buildozer/android/platform/android-sdk/platform-tools
+          if [ ! -f buildozer.spec ]; then
+            echo "[app]
+            title = Sovereign
+            package.name = sovereign.phi
+            package.domain = org.king
+            source.dir = .
+            version = 1.0
+            requirements = python3,kivy
+            orientation = portrait
+            android.accept_sdk_license = True
+            android.api = 31
+            android.minapi = 21
+            android.archs = arm64-v8a
+            log_level = 2" > buildozer.spec
+          fi
 
-      - name: Create Sovereign Source (Φ)
-        run: |
-          echo "from kivy.app import App; from kivy.uix.label import Label
-          class SovereignApp(App):
-              def build(self): return Label(text='Φ SYSTEM READY', font_size='50sp')
-          SovereignApp().run()" > main.py
-
-          echo "[app]
-          title = Sovereign
-          package.name = sovereign.phi
-          package.domain = org.king
-          source.dir = .
-          version = 1.0
-          requirements = python3,kivy
-          orientation = portrait
-          android.accept_sdk_license = True
-          android.api = 31
-          android.minapi = 21
-          android.archs = arm64-v8a
-          log_level = 2" > buildozer.spec
-
-      - name: Ultimate Build Execution
-        run: |
-          # إجبار البرنامج على قبول كل شيء آلياً
-          export APP_ANDROID_ACCEPT_SDK_LICENSE=1
-          export ANDROID_SDK_ROOT=$HOME/work/Ultimate-AI-Game-Engine/Ultimate-AI-Game-Engine/.buildozer/android/platform/android-sdk
-          buildozer -v android debug
-
-      - name: Upload Sovereign Artifact
+      - name: Upload Sovereign Result
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Success
+          name: Sovereign-Success-APK
           path: bin/*.apk
