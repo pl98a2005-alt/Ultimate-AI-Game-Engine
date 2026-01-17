@@ -7,36 +7,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.buildozer
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-
-      - name: Install Dependencies
+      - name: Install System Heavy Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk
+          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk wget
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Prepare Sovereign Files
+      - name: Manual SDK Injection (Force Fix)
+        run: |
+          # مسار بناء بيلدوزر الافتراضي
+          export SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
+          mkdir -p $SDK_DIR/cmdline-tools
+          
+          # تحميل أدوات جوجل الرسمية يدوياً لكسر غباء المسارات
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip -d $SDK_DIR/cmdline-tools
+          mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
+          
+          # أهم خطوة: خداع بيلدوزر بعمل رابط وهمي للمسار الذي يبحث عنه
+          mkdir -p $SDK_DIR/tools/bin
+          ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+          
+          # قبول الرخص فوراً قبل أن يبدأ أي شيء
+          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR --licenses
+
+      - name: Generate Engine Files
         run: |
           echo "from kivy.app import App; from kivy.uix.label import Label
           class SovereignApp(App):
-              def build(self): return Label(text='Φ SYSTEM ACTIVE')
+              def build(self): return Label(text='Φ READY')
           SovereignApp().run()" > main.py
 
           echo "[app]
-          title = Sovereign Architect
-          package.name = sovereign.phi.architect
+          title = Sovereign
+          package.name = sovereign.phi
           package.domain = org.king
           source.dir = .
-          version = 1.1.0
+          version = 1.0
           requirements = python3,kivy
           orientation = portrait
           android.accept_sdk_license = True
@@ -45,15 +52,13 @@ jobs:
           android.archs = arm64-v8a
           log_level = 2" > buildozer.spec
 
-      - name: Build with Auto-Accept
+      - name: Execute Sovereign Build
         run: |
-          # هذه الخطوة تضمن قبول الرخص حتى لو فُقد الكاش
-          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451e055736510d8612f9185303951" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          yes | /home/runner/.local/bin/buildozer -v android debug
+          # إخبار بيلدوزر بمكان الـ SDK الذي جهزناه له
+          /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Upload APK
+      - name: Final Result
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-App
+          name: Sovereign-APK
           path: bin/*.apk
