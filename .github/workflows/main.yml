@@ -17,40 +17,39 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 👑 المرحلة 1: التحميل الفولاذي (خارج Buildozer)
-      - name: Manual NDK Injection
+      # 👑 التحميل الفولاذي: سحب الخط والـ NDK يدوياً لضمان عدم الانقطاع
+      - name: Pre-Download NDK & Arabic Fonts
         run: |
           # تحميل الخط العربي للقضاء على المربعات
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # تحميل الـ NDK يدوياً بأداة wget المستقرة جداً
-          mkdir -p $HOME/ndk_cache
-          wget -c -q --show-progress --tries=15 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip -d $HOME/ndk_cache
-          echo "NDK_PATH_STATION=$HOME/ndk_cache/android-ndk-r25b" >> $GITHUB_ENV
+          # تحميل الـ NDK يدوياً بأداة wget المستقرة
+          mkdir -p $HOME/ndk_manual
+          wget -c -q --show-progress --tries=20 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip -d $HOME/ndk_manual
+          echo "NDK_PATH_STATION=$HOME/ndk_manual/android-ndk-r25b" >> $GITHUB_ENV
 
-      - name: Install System Core
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      # 👑 المرحلة 2: تشغيل المصنع وإجباره على المسار اليدوي
       - name: Sovereign Build Execution
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$PATH:$HOME/.local/bin
           
-          # حقن المسار اليدوي للـ NDK في ملف الإعدادات فوراً لمنع Buildozer من التحميل
+          # حقن المسار اليدوي للـ NDK في ملف الـ spec لتعطيل التحميل الآلي الفاشل
           sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = ${{ env.NDK_PATH_STATION }}|" buildozer.spec
           sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
           sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = True|" buildozer.spec
           
-          # انطلاق البناء! سيكتشف Buildozer أن NDK جاهز ولن يحاول تحميله ولن ينهار
+          # انطلاق البناء! لن يحاول تحميل NDK الآن
           buildozer -v android debug
 
-      - name: Sovereign Artifacts Delivery
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Success-APK
+          name: Sovereign-Architect-APK
           path: bin/*.apk
