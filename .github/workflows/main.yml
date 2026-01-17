@@ -12,20 +12,32 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Setup Android Licensing Environment
+      - name: Critical System Setup
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
-          
-          # حقن الرخص في مسار النظام العالمي للسيرفر
-          mkdir -p $ANDROID_HOME/licenses
-          echo -e "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451e055736510d8612f9185303951\n24333f8a63b6825ea9d5513f83c28d753540c975" > $ANDROID_HOME/licenses/android-sdk-license
-          echo -e "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
 
-      - name: Create Sovereign Source
+      - name: Multi-Path License Injection
         run: |
-          # ملف main.py بشعار السيادة Φ
+          # 1. حقن الرخص في مسار النظام
+          mkdir -p $ANDROID_HOME/licenses
+          # 2. حقن الرخص في مسار Buildozer الافتراضي
+          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+          # 3. حقن الرخص في مسار المشروع المحلي
+          mkdir -p .buildozer/android/platform/android-sdk/licenses
+          
+          LICENSE_HASHES="8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451e055736510d8612f9185303951\n24333f8a63b6825ea9d5513f83c28d753540c975"
+          
+          echo -e "$LICENSE_HASHES" > $ANDROID_HOME/licenses/android-sdk-license
+          echo -e "$LICENSE_HASHES" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo -e "$LICENSE_HASHES" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          
+          # قبول رخص المعاينة أيضاً
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" | tee $ANDROID_HOME/licenses/android-sdk-preview-license ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license .buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+
+      - name: Generate Sovereign Code (Φ)
+        run: |
           echo "
           from kivy.app import App
           from kivy.uix.label import Label
@@ -35,15 +47,14 @@ jobs:
 
           class SovereignApp(App):
               def build(self):
-                  return Label(text='Φ\nEngine Active', font_size='80sp', color=(1, 0.8, 0, 1), halign='center')
+                  return Label(text='Φ\nSovereign Engine Active', font_size='60sp', color=(1, 0.8, 0, 1), halign='center')
           SovereignApp().run()
           " > main.py
 
-          # ملف المواصفات مع إجبار قبول الرخص
           echo "
           [app]
-          title = Sovereign Engine
-          package.name = sovereign.engine.phi
+          title = Sovereign Architect
+          package.name = sovereign.phi.architect
           package.domain = org.king
           source.dir = .
           source.include_exts = py,png,jpg,kv,json
@@ -57,17 +68,14 @@ jobs:
           log_level = 2
           " > buildozer.spec
 
-      - name: Fast-Track Build
+      - name: Secure Build Execution
         run: |
-          # حقن الرخص داخل مجلد Buildozer الخاص قبل البدء
-          mkdir -p .buildozer/android/platform/android-sdk/licenses
-          cp $ANDROID_HOME/licenses/* .buildozer/android/platform/android-sdk/licenses/ || true
-          
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
-          /home/runner/.local/bin/buildozer -v android debug
+          # استخدام 'yes' مع أمر البناء كخيار أمان أخير
+          yes | /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Upload Sovereign APK
+      - name: Deliver APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Engine-Phi
+          name: Sovereign-Architect-APK
           path: bin/*.apk
