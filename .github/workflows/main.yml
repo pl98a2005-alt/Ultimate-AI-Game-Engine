@@ -29,4 +29,37 @@ jobs:
           # 1. تحميل الخط العربي
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # 2. إنشاء المسار
+          # 2. إنشاء المسار الذي يطلبه Buildozer في الـ Log الخاص بك
+          export NDK_DIR=".buildozer/android/platform/android-ndk-r25.2.9519653"
+          mkdir -p $NDK_DIR
+          
+          # 3. التحميل باستخدام wget (أقوى أداة تحميل في Linux)
+          echo "Starting Sovereign Download of NDK..."
+          wget -q -c --show-progress --tries=20 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          
+          # 4. فك الضغط مباشرة داخل المسار المطلوب
+          echo "Injecting NDK into the system..."
+          unzip -q android-ndk-r25b-linux.zip
+          # نقل المحتويات للمسار المتوقع بالضبط
+          cp -r android-ndk-r25b/* $NDK_DIR/
+          
+          # 5. لمسة السيادة: إنشاء ملف "التحميل المكتمل" لإخداع Buildozer
+          touch .buildozer/android/platform/.ndk_completed 2>/dev/null || true
+
+      - name: Run Buildozer
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          export PATH=$PATH:$HOME/.local/bin
+          
+          # إجبار Buildozer على رؤية المسار المحلي
+          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = /home/runner/work/Ultimate-AI-Game-Engine/Ultimate-AI-Game-Engine/.buildozer/android/platform/android-ndk-r25.2.9519653|" buildozer.spec
+          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
+          
+          # تشغيل البناء النهائي
+          buildozer -v android debug
+
+      - name: Sovereign Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sovereign-Final-Engine
+          path: bin/*.apk
