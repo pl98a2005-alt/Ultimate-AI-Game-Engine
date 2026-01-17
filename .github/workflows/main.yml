@@ -3,39 +3,41 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest # استخدام أحدث نسخة مستقرة
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install System Heavy Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk wget
-          pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: Manual SDK Injection (Force Fix)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install Buildozer
         run: |
-          # مسار بناء بيلدوزر الافتراضي
-          export SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
-          mkdir -p $SDK_DIR/cmdline-tools
+          pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
+          # إضافة مسار التثبيت للبيئة
+          echo "/home/runner/.local/bin" >> $GITHUB_PATH
+
+      - name: Link Pre-installed SDK (The Time Saver)
+        run: |
+          # بدلاً من التحميل، سنقوم بربط بيلدوزر بـ SDK السيرفر الجاهز
+          mkdir -p ~/.buildozer/android/platform/
+          ln -s $ANDROID_HOME ~/.buildozer/android/platform/android-sdk
           
-          # تحميل أدوات جوجل الرسمية يدوياً لكسر غباء المسارات
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip -d $SDK_DIR/cmdline-tools
-          mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
-          
-          # أهم خطوة: خداع بيلدوزر بعمل رابط وهمي للمسار الذي يبحث عنه
-          mkdir -p $SDK_DIR/tools/bin
-          ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-          
-          # قبول الرخص فوراً قبل أن يبدأ أي شيء
-          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR --licenses
+          # قبول الرخص في SDK النظام
+          yes | sdkmanager --licenses
 
       - name: Generate Engine Files
         run: |
           echo "from kivy.app import App; from kivy.uix.label import Label
           class SovereignApp(App):
-              def build(self): return Label(text='Φ READY')
+              def build(self): return Label(text='Φ SYSTEM ONLINE')
           SovereignApp().run()" > main.py
 
           echo "[app]
@@ -47,18 +49,18 @@ jobs:
           requirements = python3,kivy
           orientation = portrait
           android.accept_sdk_license = True
-          android.api = 31
+          android.api = 33
           android.minapi = 21
           android.archs = arm64-v8a
           log_level = 2" > buildozer.spec
 
-      - name: Execute Sovereign Build
+      - name: Build APK
         run: |
-          # إخبار بيلدوزر بمكان الـ SDK الذي جهزناه له
-          /home/runner/.local/bin/buildozer -v android debug
+          # الآن سيبدأ البناء فوراً دون تحميل SDK
+          buildozer -v android debug
 
-      - name: Final Result
+      - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-APK
+          name: Sovereign-Success-APK
           path: bin/*.apk
