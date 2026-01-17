@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -12,13 +12,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+      - name: Install Build Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libffi-dev
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Configure Architect App
+      - name: Create Architect AI Interface
         run: |
           rm -f buildozer.spec
           echo "
@@ -31,40 +31,33 @@ jobs:
 
           class ArchitectEngine(App):
               def build(self):
-                  Window.clearcolor = (0, 0, 0, 1)
-                  layout = BoxLayout(orientation='vertical', padding=30, spacing=15)
-                  self.lbl = Label(text='👑 Sovereign Architect AI', font_size='22sp', color=(0.8, 0.7, 0, 1))
-                  self.chat_history = TextInput(text='المهندس متصل... جاهز لدمج ببجي وكود', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
-                  self.user_input = TextInput(hint_text='ادمج ببجي وكود هنا...', multiline=False, size_hint=(1, 0.2))
-                  btn_layout = BoxLayout(size_hint=(1, 0.15), spacing=10)
-                  build_btn = Button(text='صناعة اللعبة', background_color=(0.5, 0.4, 0, 1))
-                  clean_btn = Button(text='Clean-up', background_color=(0.3, 0.3, 0.3, 1))
+                  Window.clearcolor = (0.05, 0.05, 0.05, 1)
+                  layout = BoxLayout(orientation='vertical', padding=20, spacing=10)
+                  self.lbl = Label(text='👑 المبرمج الذكي - AI Architect', font_size='24sp', color=(1, 0.8, 0, 1))
+                  self.chat = TextInput(text='أهلاً بك يا ملك. صف لي اللعبة التي تريد مني برمجتها الآن...', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
+                  self.user_input = TextInput(hint_text='مثال: ادمج ميكانيكا ببجي مع حركة كود...', multiline=True, size_hint_y=0.3)
+                  btn = Button(text='بدء البرمجة والبناء', size_hint_y=0.2, background_color=(0, 0.5, 0.8, 1))
                   layout.add_widget(self.lbl)
-                  layout.add_widget(self.chat_history)
+                  layout.add_widget(self.chat)
                   layout.add_widget(self.user_input)
-                  btn_layout.add_widget(build_btn)
-                  btn_layout.add_widget(clean_btn)
-                  layout.add_widget(btn_layout)
+                  layout.add_widget(btn)
                   return layout
           ArchitectEngine().run()
           " > main.py
           /home/runner/.local/bin/buildozer init
-          
-          # إعدادات الموافقة الصامتة (تجنب Broken Pipe)
           sed -i 's/title = .*/title = AI Architect/' buildozer.spec
-          sed -i 's/package.name = .*/package.name = kings.ai.engine/' buildozer.spec
+          sed -i 's/package.name = .*/package.name = sovereign.ai.builder/' buildozer.spec
           sed -i 's/requirements = .*/requirements = python3,kivy/' buildozer.spec
           sed -i 's/# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
-          sed -i 's/# log_level = .*/log_level = 2/' buildozer.spec
 
-      - name: Build APK (Silent Matrix Mode)
+      - name: Physical APK Construction
         run: |
-          # استخدام البرمجة الصامتة بدلاً من أمر yes المسبب للعطل
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
+          # استخدام البناء الصامت لتجنب انقطاع البيانات
           /home/runner/.local/bin/buildozer android debug
 
-      - name: Upload Final APK
+      - name: Upload Sovereign APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Architect-App
+          name: AI-Architect-Official-App
           path: bin/*.apk
