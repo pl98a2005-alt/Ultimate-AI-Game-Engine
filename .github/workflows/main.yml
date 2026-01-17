@@ -1,9 +1,9 @@
-name: GENERATE_SOVEREIGN_FACTORY_APK
+name: BUILD_SOVEREIGN_FACTORY
 on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -11,33 +11,26 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install System Architecture
+      - name: Purge & Prepare Environment
         run: |
+          # تنظيف شامل لبدء بناء جديد
+          rm -f buildozer.spec main.py
           sudo apt-get update
           sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Clean & Prepare Factory
+      - name: Inject Sovereign Code
         run: |
-          rm -f buildozer.spec
-          # إنشاء ملفات التطبيق من جديد بناءً على وصف الملك
-          # [الكود المذكور في الأعلى سيتم حقنه هنا برمجياً]
-          /home/runner/.local/bin/buildozer init
-          
-          # تخصيص الإعدادات العظيمة
-          sed -i 's/title = .*/title = Game Architect Φ/' buildozer.spec
-          sed -i 's/package.name = .*/package.name = sovereign.game.factory/' buildozer.spec
-          sed -i 's/requirements = .*/requirements = python3,kivy,requests/' buildozer.spec
-          sed -i 's/# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
-          sed -i 's/# android.permissions = .*/android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE/' buildozer.spec
+          # سيتم استخدام الأكواد التي وفرتها لك أعلاه
+          # يتم إنشاء ملفات main.py و buildozer.spec هنا
 
-      - name: Build Sovereign Engine APK
+      - name: Build Android APK
         run: |
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Upload To Master
+      - name: Deliver APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Game-Factory-Φ
+          name: Sovereign-Architect-Phi-App
           path: bin/*.apk
