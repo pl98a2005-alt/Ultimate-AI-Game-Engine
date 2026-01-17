@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -12,13 +12,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Core Dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libffi-dev
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Architect Engine Setup
+      - name: Configure Architect App
         run: |
           rm -f buildozer.spec
           echo "
@@ -34,7 +34,7 @@ jobs:
                   Window.clearcolor = (0, 0, 0, 1)
                   layout = BoxLayout(orientation='vertical', padding=30, spacing=15)
                   self.lbl = Label(text='👑 Sovereign Architect AI', font_size='22sp', color=(0.8, 0.7, 0, 1))
-                  self.chat_history = TextInput(text='المهندس جاهز للنقاش... اصف لي دمج ببجي وكود', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
+                  self.chat_history = TextInput(text='المهندس متصل... جاهز لدمج ببجي وكود', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
                   self.user_input = TextInput(hint_text='ادمج ببجي وكود هنا...', multiline=False, size_hint=(1, 0.2))
                   btn_layout = BoxLayout(size_hint=(1, 0.15), spacing=10)
                   build_btn = Button(text='صناعة اللعبة', background_color=(0.5, 0.4, 0, 1))
@@ -49,19 +49,21 @@ jobs:
           ArchitectEngine().run()
           " > main.py
           /home/runner/.local/bin/buildozer init
+          
+          # إعدادات الموافقة الصامتة (تجنب Broken Pipe)
           sed -i 's/title = .*/title = AI Architect/' buildozer.spec
           sed -i 's/package.name = .*/package.name = kings.ai.engine/' buildozer.spec
           sed -i 's/requirements = .*/requirements = python3,kivy/' buildozer.spec
           sed -i 's/# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
+          sed -i 's/# log_level = .*/log_level = 2/' buildozer.spec
 
-      - name: Full APK Construction (Final Attempt)
+      - name: Build APK (Silent Matrix Mode)
         run: |
-          # قبول التراخيص يدوياً قبل البدء لضمان عدم توقف الأنبوب (Broken Pipe)
-          mkdir -p ~/.android && touch ~/.android/repositories.cfg
+          # استخدام البرمجة الصامتة بدلاً من أمر yes المسبب للعطل
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
-          yes | /home/runner/.local/bin/buildozer -v android debug
+          /home/runner/.local/bin/buildozer android debug
 
-      - name: Deliver Sovereign APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
           name: Sovereign-Architect-App
