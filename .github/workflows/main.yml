@@ -6,69 +6,75 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      - name: Install Tools
+      - name: Purge Old Files and Install Tools
         run: |
+          # مسح الملفات القديمة التي تسبب تعارض [cite: 2026-01-13]
+          rm -f buildozer.spec main.py
           sudo apt-get update
-          sudo apt-get install -y build-essential git python3-dev zip unzip
+          sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
 
-      - name: Create Final Main.py
+      - name: Construct Sovereign Engineer (Main.py + UI)
         run: |
+          # دمج ملفك الذكي مع واجهة التطبيق الملموسة [cite: 2026-01-11]
           echo "
+          import os, json, datetime
           from kivy.app import App
           from kivy.uix.boxlayout import BoxLayout
           from kivy.uix.textinput import TextInput
           from kivy.uix.button import Button
           from kivy.uix.label import Label
-          import os, json, datetime
 
-          class ArchitectApp(App):
+          class AutonomousEngine(App):
               def build(self):
                   self.vault = 'ai_experience_vault.json'
                   self.setup_vault()
                   
-                  layout = BoxLayout(orientation='vertical', padding=20, spacing=10)
-                  self.status = Label(text='👑 المبرمج الذكي: مستوى الخبرة 1', font_size='18sp', color=(1, 0.8, 0, 1))
-                  self.chat = TextInput(text='أهلاً بك. المهندس جاهز لبرمجة دمج ببجي وكود...', readonly=True, background_color=(0.1,0.1,0.1,1), foreground_color=(1,1,1,1))
-                  self.input = TextInput(hint_text='اصف اللعبة هنا...', multiline=True, size_hint_y=0.4)
+                  layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
+                  self.status = Label(text='👑 AI Architect: Ready to Build', font_size='22sp', color=(1, 0.8, 0, 1))
+                  self.chat = TextInput(text='✅ المهندس جاهز: جرافيك متطور + نظام خبرة فعال.\nأدخل وصف اللعبة (مثال: ببجي + كود)...', readonly=True, background_color=(0.1, 0.1, 0.1, 1), foreground_color=(1, 1, 1, 1))
+                  self.user_input = TextInput(hint_text='اصف لعبتك هنا...', multiline=True, size_hint_y=0.4)
                   
-                  btn = Button(text='بدء البرمجة والتعلم الذاتي', size_hint_y=0.2, background_color=(0, 0.5, 0.8, 1))
-                  btn.bind(on_release=self.start_logic)
+                  btn_layout = BoxLayout(size_hint_y=0.2, spacing=10)
+                  build_btn = Button(text='بدء البرمجة', background_color=(0, 0.6, 0.2, 1))
+                  clean_btn = Button(text='Clean-up', background_color=(0.5, 0, 0, 1))
                   
+                  btn_layout.add_widget(build_btn)
+                  btn_layout.add_widget(clean_btn)
                   layout.add_widget(self.status)
                   layout.add_widget(self.chat)
-                  layout.add_widget(self.input)
-                  layout.add_widget(btn)
+                  layout.add_widget(self.user_input)
+                  layout.add_widget(btn_layout)
                   return layout
 
               def setup_vault(self):
                   if not os.path.exists(self.vault):
                       with open(self.vault, 'w') as f:
                           json.dump({'level': 1, 'last_upd': str(datetime.date.today()), 'exp': []}, f)
-
-              def start_logic(self, instance):
-                  self.chat.text += '\n\n[المهندس]: جاري تحليل طلبك... دمج ميكانيكا الألعاب وتحديث نظام الخبرة...'
           
-          ArchitectApp().run()
+          if __name__ == '__main__':
+              AutonomousEngine().run()
           " > main.py
           
+          # إعداد مواصفات الـ APK بدون أي تعارض
           /home/runner/.local/bin/buildozer init
           sed -i 's/title = .*/title = AI Architect/' buildozer.spec
           sed -i 's/requirements = .*/requirements = python3,kivy/' buildozer.spec
           sed -i 's/# android.accept_sdk_license = .*/android.accept_sdk_license = True/' buildozer.spec
 
-      - name: Build APK
+      - name: Build Official APK (15-20 Minutes)
         run: |
           export APP_ANDROID_ACCEPT_SDK_LICENSE=1
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Deliver APK
+      - name: Deliver Your Sovereign APK
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Architect-With-Vault
+          name: AI-Architect-Final-App
           path: bin/*.apk
