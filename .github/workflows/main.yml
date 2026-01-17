@@ -17,38 +17,33 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk wget
+          # تثبيت Cython بإصدار محدد لضمان توافق Kivy
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      # 👑 إعادة هيكلة الأدوات السيادية لتصحيح مسارات جوجل الفاشلة
-      - name: Sovereign Toolchain Reconstruction
+      - name: Sovereign Toolchain Injection
         run: |
           PLATFORM_DIR="$HOME/.buildozer/android/platform"
           SDK_DIR="$PLATFORM_DIR/android-sdk"
           mkdir -p $SDK_DIR/cmdline-tools
           
-          # 1. تحميل الخط العربي
+          # تحميل الخط العربي للسيادة البصرية
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # 2. تحميل وحقن الـ NDK في المسار الذي يطلبه Buildozer بالضبط
-          mkdir -p $PLATFORM_DIR/android-ndk-r25.2.9519653
+          # حقن NDK و SDK (المسارات التي أثبتت نجاحها في الـ Log السابق)
           wget -q -c https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip -q android-ndk-r25b-linux.zip
+          mkdir -p $PLATFORM_DIR/android-ndk-r25.2.9519653
           cp -r android-ndk-r25b/* $PLATFORM_DIR/android-ndk-r25.2.9519653/
 
-          # 3. تحميل وإصلاح هيكل الـ SDK Manager
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-9477386_latest.zip -d $SDK_DIR/cmdline-tools
           mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
           
-          # 👑 الضربة القاضية: إنشاء رابط وهمي (Symlink) للمسار القديم الذي يطلبه Buildozer
-          mkdir -p $SDK_DIR/tools/bin
-          ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-          
-          # 4. قبول التراخيص يدوياً
+          # قبول التراخيص يدوياً لتجنب توقف البناء
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0"
 
@@ -57,15 +52,15 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$PATH:$HOME/.local/bin
           
-          # تعديل الـ Spec برمجياً لضمان التوافق
-          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = False|" buildozer.spec
+          # إجبار Buildozer على استخدام أبسط إعدادات البناء لتجنب انهيار الذاكرة
+          # سنبني لمعالج واحد فقط حالياً لضمان نجاح أول APK
+          sed -i "s|^android.archs =.*|android.archs = arm64-v8a|" buildozer.spec
           
-          # انطلاق البناء السيادي
+          # انطلاق البناء السيادي - استخدام خيار debug لتقليل وقت التجميع
           buildozer -v android debug
 
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Final-Build
+          name: Sovereign-First-Success
           path: bin/*.apk
