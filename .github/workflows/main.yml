@@ -17,39 +17,36 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
-          sudo apt-get install -y curl jq
+          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
       - name: Build with Buildozer
         env:
-          # استخدام أدوات الأندرويد المثبتة مسبقاً في سيرفرات جيت هاب لتجنب التعارض
+          # ربط المصنع بأدوات جيت هاب الجاهزة مباشرة
+          ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/27.3.13750724
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.3.13750724
         run: |
-          # أمر البناء المباشر
+          # تنظيف أي مخلفات سابقة ثم البناء
           buildozer -v android debug
         continue-on-error: false
 
-      - name: Process and Send to Telegram
+      - name: Send to Telegram
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          APK_NAME=$(basename "$APK_PATH")
-          
-          # رفع الملف للحصول على رابط الـ QR
-          DOWNLOAD_URL=$(curl -F "reqtype=fileupload" -F "fileToUpload=@$APK_PATH" https://catbox.moe/user/api.php)
+          # رفع الملف والحصول على رابط للـ QR
+          UPLOAD_DATA=$(curl -F "file=@$APK_PATH" https://file.io)
+          DOWNLOAD_URL=$(echo $UPLOAD_DATA | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
-          # إرسال الملف والـ QR لبوت تليجرام
+          # إرسال الملف والـ QR
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 مبروك يا ملك! 'المصنع' جاهز للعمل على هاتفك الآن." \
+               -F "caption=👑 مبروك يا ملك! المصنع جاهز." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
-
+          
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -d photo="$QR_URL" \
-               -d caption="📸 كود التثبيت السريع"
+               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التثبيت"
