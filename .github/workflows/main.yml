@@ -17,49 +17,50 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install System Core
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
+          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk wget
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      # 👑 عملية "الاختراق الهيكلي" لوضع الـ NDK في مكانه الإجباري
-      - name: Forced NDK Injection
+      # 👑 المرحلة الكبرى: حقن الأدوات يدوياً (Manual Toolchain Injection)
+      - name: Sovereign Toolchain Injection
         run: |
-          # 1. تحميل الخط العربي
+          # 1. تجهيز المسارات السيادية
+          PLATFORM_DIR=".buildozer/android/platform"
+          mkdir -p $PLATFORM_DIR/android-sdk
+          
+          # 2. تحميل الخط العربي
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
           
-          # 2. إنشاء المسار الذي يطلبه Buildozer في الـ Log الخاص بك
-          export NDK_DIR=".buildozer/android/platform/android-ndk-r25.2.9519653"
-          mkdir -p $NDK_DIR
-          
-          # 3. التحميل باستخدام wget (أقوى أداة تحميل في Linux)
-          echo "Starting Sovereign Download of NDK..."
-          wget -q -c --show-progress --tries=20 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          
-          # 4. فك الضغط مباشرة داخل المسار المطلوب
-          echo "Injecting NDK into the system..."
+          # 3. تحميل الـ NDK يدوياً (استخدام wget أكثر استقراراً بمراحل)
+          echo "Downloading NDK R25b..."
+          wget -q -c --tries=15 https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip -q android-ndk-r25b-linux.zip
-          # نقل المحتويات للمسار المتوقع بالضبط
-          cp -r android-ndk-r25b/* $NDK_DIR/
+          # نقله للمسار المتوقع من Buildozer
+          mv android-ndk-r25b $PLATFORM_DIR/android-ndk-r25.2.9519653
           
-          # 5. لمسة السيادة: إنشاء ملف "التحميل المكتمل" لإخداع Buildozer
-          touch .buildozer/android/platform/.ndk_completed 2>/dev/null || true
+          # 4. تحميل الـ SDK Command line tools
+          echo "Downloading SDK Tools..."
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip -d $PLATFORM_DIR/android-sdk/cmdline-tools
+          mv $PLATFORM_DIR/android-sdk/cmdline-tools/cmdline-tools $PLATFORM_DIR/android-sdk/cmdline-tools/latest
 
-      - name: Run Buildozer
+      - name: Build Execution
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$PATH:$HOME/.local/bin
           
-          # إجبار Buildozer على رؤية المسار المحلي
-          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = /home/runner/work/Ultimate-AI-Game-Engine/Ultimate-AI-Game-Engine/.buildozer/android/platform/android-ndk-r25.2.9519653|" buildozer.spec
+          # إجبار Buildozer على رؤية المسارات التي حقناها
+          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = $GITHUB_WORKSPACE/.buildozer/android/platform/android-ndk-r25.2.9519653|" buildozer.spec
+          sed -i "s|^#\? \?android.sdk_path =.*|android.sdk_path = $GITHUB_WORKSPACE/.buildozer/android/platform/android-sdk|" buildozer.spec
           sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
           
-          # تشغيل البناء النهائي
+          # انطلاق البناء! لن يحاول تحميل أي شيء الآن.
           buildozer -v android debug
 
-      - name: Sovereign Artifact
+      - name: Upload Sovereign APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Final-Engine
+          name: Sovereign-Final-Build
           path: bin/*.apk
