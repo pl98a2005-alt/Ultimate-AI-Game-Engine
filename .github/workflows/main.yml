@@ -17,44 +17,44 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Core Dependencies
+      - name: Install System Core
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade "buildozer>=1.5.0" cython virtualenv
 
-      - name: Build Sovereign Environment
+      - name: Forced SDK Injection
         run: |
           rm -rf .buildozer bin
-          # 1. إنشاء مسار معزول تماماً بعيداً عن أعين GitHub الافتراضية
-          export MY_SAFE_SDK=$HOME/sovereign_tools
-          mkdir -p $MY_SAFE_SDK/cmdline-tools
-          
-          # 2. تحميل أدوات التحكم
+          # 1. تجهيز المسار الملكي
+          export SDK_DIR=$HOME/sovereign_tools
+          mkdir -p $SDK_DIR/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q sdk.zip -d $MY_SAFE_SDK/cmdline-tools
-          mv $MY_SAFE_SDK/cmdline-tools/cmdline-tools $MY_SAFE_SDK/cmdline-tools/latest
+          unzip -q sdk.zip -d $SDK_DIR/cmdline-tools
+          mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
           
-          # 3. قبول التراخيص وحقن المسارات الكلاسيكية التي يطلبها Buildozer
-          export PATH=$MY_SAFE_SDK/cmdline-tools/latest/bin:$PATH
-          mkdir -p $MY_SAFE_SDK/tools/bin
-          cp $MY_SAFE_SDK/cmdline-tools/latest/bin/sdkmanager $MY_SAFE_SDK/tools/bin/sdkmanager
+          # 2. إنشاء الهيكل الذي يعشقه Buildozer قسراً
+          mkdir -p $SDK_DIR/tools/bin
+          cp $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+          chmod +x $SDK_DIR/tools/bin/sdkmanager
           
-          yes | sdkmanager --sdk_root=$MY_SAFE_SDK --licenses || true
-          sdkmanager --sdk_root=$MY_SAFE_SDK "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+          # 3. قبول التراخيص وتثبيت الـ NDK 25b
+          export PATH=$SDK_DIR/cmdline-tools/latest/bin:$PATH
+          mkdir -p $SDK_DIR/licenses
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303" > $SDK_DIR/licenses/android-sdk-license
+          yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
+          sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
 
-          # 4. تعديل الـ Spec بروابط مطلقة (Absolute Paths)
-          sed -i "s|^#\? \?android.sdk_path =.*|android.sdk_path = $MY_SAFE_SDK|" buildozer.spec
-          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = $MY_SAFE_SDK/ndk/25.2.9519653|" buildozer.spec
-          sed -i 's|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|' buildozer.spec
+          # 4. 👑 الضربة القاضية: تعديل ملف spec بمسارات ثابتة ومنع التحديث
+          sed -i "s|^#\? \?android.sdk_path =.*|android.sdk_path = $SDK_DIR|" buildozer.spec
+          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = $SDK_DIR/ndk/25.2.9519653|" buildozer.spec
+          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
+          # منع Buildozer من محاولة تحديث الـ SDK بنفسه
+          sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = True|" buildozer.spec
 
-          # 5. 👑 التطهير النهائي لبيئة العمل
+          # 5. تنظيف البيئة وتشغيل المحرك
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          # مسح شامل لكل ما يمت بصلة لأندرويد في بيئة GitHub
-          unset ANDROID_HOME
-          unset ANDROID_SDK_ROOT
-          unset ANDROID_NDK_HOME
-          unset ANDROID_NDK_ROOT
-          
-          # تشغيل البناء باستخدام المسار المعزول
-          /home/runner/.local/bin/buildozer -v android debug
+          export ANDROID_HOME=$SDK_DIR
+          export ANDROID_SDK_ROOT=$SDK_DIR
+          # حذف أي أثر لـ NDK 27 من مسارات النظام
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/27* /home/runner/.local/bin/buildozer -v android debug
