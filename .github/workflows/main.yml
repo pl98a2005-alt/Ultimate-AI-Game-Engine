@@ -17,55 +17,55 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Core & Java 17
+      - name: Install Core & Java 17
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
-          # 👑 إجبار النظام على استخدام Java 17 كخيار افتراضي وحيد
           sudo update-java-alternatives --set $(update-java-alternatives -l | grep java-1.17 | awk '{print $1}')
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           pip install --user --upgrade "buildozer>=1.5.0" cython virtualenv
 
-      - name: Forced SDK Injection
+      - name: Forced SDK Infrastructure
         run: |
           rm -rf .buildozer bin
           export SDK_DIR=$HOME/sovereign_tools
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           
-          # 1. بناء الهيكل الجديد
+          # 1. تحميل وتثبيت أدوات التحكم
           mkdir -p $SDK_DIR/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $SDK_DIR/cmdline-tools
           mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
           
-          # 2. تجهيز البيئة
-          export PATH=$SDK_DIR/cmdline-tools/latest/bin:$JAVA_HOME/bin:$PATH
+          # 2. 👑 الخداع الهيكلي (Structural Deception)
+          # نقوم بإنشاء المجلد الذي يطلبه Buildozer ونضع فيه الأدوات
+          mkdir -p $SDK_DIR/tools/bin
+          cp -r $SDK_DIR/cmdline-tools/latest/* $SDK_DIR/tools/ 2>/dev/null || true
+          cp $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+          chmod +x $SDK_DIR/tools/bin/sdkmanager
           
-          # 3. قبول التراخيص وتثبيت المكونات (باستخدام الجافا الصحيحة)
-          mkdir -p $SDK_DIR/licenses
-          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303" > $SDK_DIR/licenses/android-sdk-license
-          yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
-          sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+          # 3. قبول التراخيص (باستخدام المسار الجديد)
+          export PATH=$SDK_DIR/cmdline-tools/latest/bin:$SDK_DIR/tools/bin:$JAVA_HOME/bin:$PATH
+          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR --licenses || true
+          $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653" "platform-tools"
 
-          # 4. تعديل ملف الـ spec ليطابق الواقع الجديد
+          # 4. تحديث الـ Spec لتعطيل البحث التلقائي اللعين
           sed -i "s|^#\? \?android.sdk_path =.*|android.sdk_path = $SDK_DIR|" buildozer.spec
           sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = $SDK_DIR/ndk/25.2.9519653|" buildozer.spec
           sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
           sed -i "s|^#\? \?android.skip_update =.*|android.skip_update = True|" buildozer.spec
 
-          # 5. تطهير المسارات قبل التشغيل
-          unset ANDROID_HOME
-          unset ANDROID_SDK_ROOT
+          # 5. تطهير نهائي للبيئة
           export ANDROID_HOME=$SDK_DIR
+          export ANDROID_SDK_ROOT=$SDK_DIR
           
-          # انطلاق المحرك
+          # انطلاق البناء
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Sovereign Factory (إظهار زر التحميل)
+      - name: Sovereign Factory (Artifacts)
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Engine-V112
+          name: Sovereign-Engine-V113
           path: bin/*.apk
 
       - name: Sovereign Delivery to Telegram
@@ -74,5 +74,5 @@ jobs:
           APK_FILE=$(find bin/ -name "*.apk" | head -n 1)
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                -F "document=@$APK_FILE" \
-               -F "caption=👑 تم سحق خطأ الجافا! النسخة 112 جاهزة للتحميل يا ملك." \
+               -F "caption=👑 تم ترويض المسارات بنجاح! النسخة 113 في طريقها إليك." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
