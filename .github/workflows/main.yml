@@ -17,39 +17,35 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
-          pip install --user --upgrade buildozer cython virtualenv
+          pip install --user --upgrade "buildozer>=1.5.0" cython virtualenv
 
-      - name: Extreme Isolated Build
+      - name: Extreme Override Build
         run: |
-          # 1. تنظيف شامل وجذري
+          # 1. تنظيف شامل
           rm -rf .buildozer bin
           
-          # 2. 👑 خدعة "المسار المستقل": سنقوم بتحميل الأدوات في مجلد مخفي في المنزل
-          mkdir -p ~/.android/sdk/cmdline-tools
+          # 2. 👑 تحميل الـ SDK الخاص بنا في مكان معزول
+          mkdir -p $HOME/custom_sdk/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q sdk.zip -d ~/.android/sdk/cmdline-tools
-          mv ~/.android/sdk/cmdline-tools/cmdline-tools ~/.android/sdk/cmdline-tools/latest
+          unzip -q sdk.zip -d $HOME/custom_sdk/cmdline-tools
+          mv $HOME/custom_sdk/cmdline-tools/cmdline-tools $HOME/custom_sdk/cmdline-tools/latest
           
-          # 3. تعديل ملف buildozer.spec برمجياً لفرض المسار الجديد
-          sed -i "s|# android.sdk_path =|android.sdk_path = /home/runner/.android/sdk|g" buildozer.spec
-          sed -i "s|android.accept_sdk_license = False|android.accept_sdk_license = True|g" buildozer.spec
+          # 3. تعديل ملف buildozer.spec بقوة (حقن المسارات يدوياً)
+          # سنقوم بحذف أي سطر يحتوي على sdk_path أو ndk_path قديم ونضع الجديد
+          sed -i 's/^#\? \?android.sdk_path =.*/android.sdk_path = \/home\/runner\/custom_sdk/' buildozer.spec
+          sed -i 's/^#\? \?android.accept_sdk_license =.*/android.accept_sdk_license = True/' buildozer.spec
           
-          # 4. تصفير متغيرات النظام لمنع التداخل
-          export ANDROID_HOME=/home/runner/.android/sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          # 4. قبول التراخيص يدوياً
+          export PATH=$PATH:$HOME/custom_sdk/cmdline-tools/latest/bin
+          yes | sdkmanager --sdk_root=$HOME/custom_sdk --licenses || true
           
-          # 5. قبول التراخيص يدوياً
-          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
-          
-          # 6. تشغيل البناء مع عزل فيزيائي
-          buildozer -v android debug
-        env:
-          ANDROID_HOME: /home/runner/.android/sdk
-          ANDROID_SDK_ROOT: /home/runner/.android/sdk
+          # 5. تشغيل البناء مع عزل فيزيائي كامل لمتغيرات النظام
+          # نستخدم env -u لحذف المتغيرات التي يفرضها GitHub تلقائياً
+          env -u ANDROID_HOME -u ANDROID_SDK_ROOT buildozer -v android debug
         continue-on-error: false
 
       - name: Deliver to Telegram
@@ -60,5 +56,5 @@ jobs:
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 السيادة تحققت! الزر الأخضر يلمع." \
+               -F "caption=👑 السيادة تحققت أخيراً! الزر الأخضر يلمع." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
