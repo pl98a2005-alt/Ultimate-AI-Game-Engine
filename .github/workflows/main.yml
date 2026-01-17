@@ -1,44 +1,46 @@
-name: BUILD_SOVEREIGN_FACTORY
+name: SOVEREIGN_STATION_AUTO_BUILD
 on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      # استخدام صورة Docker مجهزة ببيئة أندرويد وبيلدوزر كاملة
-      image: kivy/buildozer:latest
+      image: kivy/buildozer:latest # استخدام بيئة الاندرويد الرسمية
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate Core (Φ)
+      - name: Generate Sovereign Files
         run: |
-          # تأكد من وجود ملفاتك الأساسية قبل البدء
-          echo "from kivy.app import App; from kivy.uix.label import Label
-          class SovereignApp(App):
+          # التأكد من وجود ملفات التشغيل الأساسية
+          if [ ! -f main.py ]; then
+            echo "from kivy.app import App; from kivy.uix.label import Label; 
+          class Sovereign(App):
               def build(self): return Label(text='Φ SYSTEM LIVE')
-          SovereignApp().run()" > main.py
+          Sovereign().run()" > main.py
+          fi
 
-          echo "[app]
-          title = Sovereign
-          package.name = sovereign.phi
-          package.domain = org.king
-          source.dir = .
-          version = 1.0
-          requirements = python3,kivy
-          orientation = portrait
-          android.accept_sdk_license = True
-          android.api = 31
-          android.minapi = 21
-          android.archs = arm64-v8a
-          log_level = 2" > buildozer.spec
-
-      - name: Execute Build Inside Container
+      - name: Build Android APK
         run: |
-          # قبول الرخص داخل الحاوية وبدء البناء فوراً
+          # قبول الرخص والبناء داخل الحاوية
           yes | buildozer -v android debug
 
-      - name: Deliver Sovereign APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Sovereign-Final-Success
-          path: bin/*.apk
+      - name: Process and Send to Telegram
+        run: |
+          # 1. العثور على ملف الـ APK
+          APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
+          
+          # 2. رفع الملف للحصول على رابط مباشر (باستخدام تحويل الرابط لـ QR)
+          DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
+          QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
+          
+          # 3. إرسال الملف مباشرة إلى تليجرام
+          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
+          -F "caption=👑 يا ملك، تم بناء النسخة السيادية بنجاح! 
+          📦 الملف مرفق أدناه للتثبيت المباشر." \
+          https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
+
+          # 4. إرسال الـ QR Code للتثبيت السريع عبر الكاميرا
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
+          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d photo="$QR_URL" \
+          -d caption="📸 صور هذا الكود بهاتف آخر أو بماسح التطبيق للتثبيت الفوري!"
