@@ -26,29 +26,28 @@ jobs:
       - name: Sovereign Tools Alignment
         run: |
           rm -rf .buildozer bin
-          
-          # 1. إعداد الـ SDK بهيكلية 2026
+          # 1. إعداد الـ SDK بهيكلية 2026 المستقلة
           mkdir -p $HOME/android_sdk/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $HOME/android_sdk/cmdline-tools
           mv $HOME/android_sdk/cmdline-tools/cmdline-tools $HOME/android_sdk/cmdline-tools/latest
           
-          # 2. 👑 جسر القوة: ربط المسار القديم بالجديد لإرضاء Buildozer
-          mkdir -p $HOME/android_sdk/tools/bin
-          ln -sf $HOME/android_sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android_sdk/tools/bin/sdkmanager
-          ln -sf $HOME/android_sdk/cmdline-tools/latest/bin/avdmanager $HOME/android_sdk/tools/bin/avdmanager
-          
-          # 3. قبول التراخيص وتحميل الـ NDK المتوافق
+          # 2. 👑 الحل النهائي للتراخيص (Force Accept)
           export PATH=$PATH:$HOME/android_sdk/cmdline-tools/latest/bin
+          mkdir -p $HOME/android_sdk/licenses
+          # حقن مفاتيح التراخيص المعروفة لإجبار النظام على العمل
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303\n24333f8a63b6825ea0c55260223df90129d33370" > $HOME/android_sdk/licenses/android-sdk-license
           yes | sdkmanager --sdk_root=$HOME/android_sdk --licenses || true
+          
+          # 3. تحميل الأدوات المتوافقة مع أندرويد 33 (المستقر لعام 2026)
           sdkmanager --sdk_root=$HOME/android_sdk "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
           
-          # 4. حقن الإعدادات في buildozer.spec
+          # 4. حقن الإعدادات الذهبية في buildozer.spec
           sed -i 's|^#\? \?android.sdk_path =.*|android.sdk_path = /home/runner/android_sdk|' buildozer.spec
           sed -i 's|^#\? \?android.ndk_path =.*|android.ndk_path = /home/runner/android_sdk/ndk/25.2.9519653|' buildozer.spec
           sed -i 's|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|' buildozer.spec
           
-          # 5. تشغيل البناء مع تصفير الذاكرة لضمان السيادة
+          # 5. تشغيل البناء السيادي
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           env -u ANDROID_HOME -u ANDROID_SDK_ROOT -u ANDROID_NDK_HOME buildozer -v android debug
         continue-on-error: false
@@ -58,8 +57,7 @@ jobs:
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
           DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
-          QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 نصرٌ مبين! تطبيقك جاهز للاستخدام يا ملك." \
+               -F "caption=👑 نصرٌ مبين! المهندس الذكي جاهز. تم دمج نظام الخبرة والتحميل الذكي." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
