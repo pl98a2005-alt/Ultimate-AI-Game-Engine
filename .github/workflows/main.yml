@@ -12,42 +12,36 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Critical System Setup
+      - name: Infrastructure & SDK Fix
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git python3-dev zip unzip libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade Cython==0.29.33 buildozer virtualenv
+          
+          # تحميل أدوات سطر الأوامر يدويًا لضمان وجود sdkmanager في المسار الصحيح
+          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip commandlinetools-linux-9477386_latest.zip -d ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          mv ~/.buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+          
+          # إنشاء روابط رمزية (Symlinks) للمسارات القديمة التي يبحث عنها buildozer
+          mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+          ln -s ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
 
-      - name: Multi-Path License Injection
+      - name: Force Sovereign Licenses
         run: |
-          # 1. حقن الرخص في مسار النظام
-          mkdir -p $ANDROID_HOME/licenses
-          # 2. حقن الرخص في مسار Buildozer الافتراضي
+          # حقن الرخص في كل مكان ممكن
           mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-          # 3. حقن الرخص في مسار المشروع المحلي
-          mkdir -p .buildozer/android/platform/android-sdk/licenses
-          
-          LICENSE_HASHES="8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451e055736510d8612f9185303951\n24333f8a63b6825ea9d5513f83c28d753540c975"
-          
-          echo -e "$LICENSE_HASHES" > $ANDROID_HOME/licenses/android-sdk-license
-          echo -e "$LICENSE_HASHES" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "$LICENSE_HASHES" > .buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          
-          # قبول رخص المعاينة أيضاً
-          echo "84831b9409646a918e30573bab4c9c91346d8abd" | tee $ANDROID_HOME/licenses/android-sdk-preview-license ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license .buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+          yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/home/runner/.buildozer/android/platform/android-sdk --licenses || true
 
-      - name: Generate Sovereign Code (Φ)
+      - name: Generate Core Files (Φ)
         run: |
           echo "
           from kivy.app import App
           from kivy.uix.label import Label
-          from kivy.core.window import Window
-
-          Window.clearcolor = (0, 0, 0, 1)
-
           class SovereignApp(App):
               def build(self):
-                  return Label(text='Φ\nSovereign Engine Active', font_size='60sp', color=(1, 0.8, 0, 1), halign='center')
+                  return Label(text='Φ\nSYSTEM READY', font_size='80sp', color=(1, 0.8, 0, 1))
           SovereignApp().run()
           " > main.py
 
@@ -58,7 +52,7 @@ jobs:
           package.domain = org.king
           source.dir = .
           source.include_exts = py,png,jpg,kv,json
-          version = 1.0.0
+          version = 1.1.0
           requirements = python3,kivy
           orientation = portrait
           android.accept_sdk_license = True
@@ -68,14 +62,13 @@ jobs:
           log_level = 2
           " > buildozer.spec
 
-      - name: Secure Build Execution
+      - name: Final Execution
         run: |
-          export APP_ANDROID_ACCEPT_SDK_LICENSE=1
-          # استخدام 'yes' مع أمر البناء كخيار أمان أخير
-          yes | /home/runner/.local/bin/buildozer -v android debug
+          export PATH=$PATH:~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+          /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Deliver APK
+      - name: Deliver Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Architect-APK
+          name: Sovereign-Architect-Success
           path: bin/*.apk
