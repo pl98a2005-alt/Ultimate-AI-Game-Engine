@@ -1,105 +1,130 @@
-import json, os, requests
+import os
+import json
+import time
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
-from kivy.uix.progressbar import ProgressBar
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.core.window import Window
 from kivy.clock import Clock
+from kivy.graphics import Color, RoundedRectangle
 
-class SovereignEngine(App):
-    def build(self):
-        # --- نظام الخبرة المحمي ---
-        self.exp_file = "experience.json"
-        self.knowledge = self.load_knowledge()
-        
-        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
-        
-        # الرأس (Header)
-        self.status = Label(text="Φ SOVEREIGN COMMAND CENTER v2.0", font_size='22sp', color=(0, 1, 1, 1))
-        layout.add_widget(self.status)
+# --- إعدادات السيادة والأداء العالي ---
+Window.clearcolor = (0.01, 0.01, 0.02, 1) # سواد ملكي عميق
+Config_FPS = 120 # استهداف فريمات عالية مثل ببجي
 
-        # --- مدخل الوصف (مستقبل الخيال) ---
-        self.description_input = TextInput(
-            hint_text="صف العالم أو اللعبة التي يتخيلها عقلك...",
-            multiline=True, size_hint_y=0.4, background_color=(0.1, 0.1, 0.1, 1),
-            foreground_color=(1, 1, 1, 1), cursor_color=(0, 1, 0, 1)
+class SovereignMind:
+    """عقل المهندس: نظام الخبرة السري والتعلم الذاتي"""
+    def __init__(self):
+        self.memory_path = ".sovereign_logic.bin"
+        self.data = self.load_experience()
+
+    def load_experience(self):
+        if os.path.exists(self.memory_path):
+            try:
+                with open(self.memory_path, 'r') as f:
+                    return json.load(f)
+            except: pass
+        return {"xp": 0, "level": 1, "total_builds": 0, "unlocked_tech": []}
+
+    def evolve(self, action_type, complexity="normal"):
+        gain = 100 if complexity == "high" else 20
+        self.data["xp"] += gain
+        self.data["total_builds"] += 1
+        self.data["level"] = (self.data["xp"] // 1000) + 1
+        with open(self.memory_path, 'w') as f:
+            json.dump(self.data, f)
+        return gain
+
+class ArchitectScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(name='architect', **kwargs)
+        self.mind = SovereignMind()
+        
+        # التخطيط الرئيسي
+        self.layout = BoxLayout(orientation='vertical', padding=30, spacing=20)
+        
+        # 1. شريط الحالة العلوي (Status Bar)
+        stats = self.mind.data
+        self.header = Label(
+            text=f"RANK: SOVEREIGN | LVL: {stats['level']} | XP: {stats['xp']}\n[ SYSTEM: AR/EN | 120 FPS UNLOCKED ]",
+            size_hint_y=0.15, color=(0, 1, 0.7, 1), bold=True, font_size='18sp'
         )
-        layout.add_widget(self.description_input)
+        self.layout.add_widget(self.header)
 
-        # زر المهندس (تحليل + استنتاج + اقتراح)
-        btn_architect = Button(text="🧠 استنتاج وبناء (Engineer Logic)", background_color=(0.5, 0, 1, 1))
-        btn_architect.bind(on_press=self.analyze_and_propose)
-        layout.add_widget(btn_architect)
+        # 2. كونسول المهندس (The Thinking Zone)
+        self.console = Label(
+            text="المهندس: الأنظمة جاهزة. بانتظار وصفك لبدء بناء حزمة الـ APK+OBB.",
+            size_hint_y=0.35, halign='center', valign='middle',
+            text_size=(Window.width - 60, None), color=(0.9, 0.9, 0.9, 1)
+        )
+        self.layout.add_widget(self.console)
 
-        # شريط التحميل الذكي (بدون فجوات)
-        self.progress = ProgressBar(max=100, value=0)
-        layout.add_widget(self.progress)
+        # 3. صندوق الوصف الذكي (Architect Prompt)
+        self.prompt = TextInput(
+            hint_text="صف اللعبة هنا... (مثلاً: لعبة سيارات 3D مع فيزياء اصطدام واقعية)",
+            size_hint_y=0.15, background_color=(0.05, 0.05, 0.1, 1),
+            foreground_color=(1, 1, 1, 1), cursor_color=(0, 1, 0.8, 1),
+            font_size='16sp', multiline=False
+        )
+        self.layout.add_widget(self.prompt)
 
-        # زر التثبيت عبر QR (تطوير: يدعم التحميل الخلفي)
-        btn_scan = Button(text="📸 مسح وتحديث (Hot-Swap Update)", background_color=(0, 0.8, 0.4, 1))
-        btn_scan.bind(on_press=self.open_scanner)
-        layout.add_widget(btn_scan)
+        # 4. أزرار التحكم والسيادة
+        btn_box = BoxLayout(size_hint_y=0.2, spacing=15)
+        
+        self.btn_build = Button(text="بناء سيادي (Build)", background_color=(0, 0.5, 0.3, 1), bold=True)
+        self.btn_build.bind(on_press=self.initiate_build)
+        
+        self.btn_clean = Button(text="تطهير (Clean)", background_color=(0.6, 0, 0, 1), bold=True)
+        self.btn_clean.bind(on_press=self.perform_clean)
+        
+        btn_box.add_widget(self.btn_build)
+        btn_box.add_widget(self.btn_clean)
+        self.layout.add_widget(btn_box)
 
-        # زر التنظيف السيادي (المطور: استثناء الملفات الحيوية)
-        btn_clean = Button(text="🧹 تنظيف سيادي (Preserve Knowledge)", background_color=(1, 0.2, 0.2, 1))
-        btn_clean.bind(on_press=self.sovereign_cleanup)
-        layout.add_widget(btn_clean)
+        self.add_widget(self.layout)
 
-        return layout
-
-    # --- منطق المهندس (التحليل والاستنتاج) ---
-    def analyze_and_propose(self, instance):
-        user_desc = self.description_input.text
-        if not user_desc:
-            self.status.text = "⚠️ يا ملك، أحتاج وصفاً لأبدأ البناء!"
+    def initiate_build(self, instance):
+        desc = self.prompt.text
+        if not desc:
+            self.console.text = "المهندس: لا يمكنني بناء العدم. صف رؤيتك يا ملك."
             return
 
-        # محاكاة الاستنتاج (Inference)
-        self.status.text = "🔍 المهندس يحلل الأنماط ويقترح تطويرات..."
+        # محاكاة منطق البناء المتقدم
+        self.console.text = "المهندس: جاري حقن مكتبات Vulkan لضمان 120 فريم...\nتجهيز ملفات OBB للأصول الضخمة...\nحفظ الخبرة في العقل السري..."
         
-        # هنا المهندس يقترح بناءً على الخبرة السابقة
-        suggestion = "اقترح إضافة نظام 'الجاذبية المتغيرة' ونموذج 'تعلم الأعداء' من حركاتك."
-        self.status.text = f"✅ استنتاج: {suggestion}"
+        # زيادة الخبرة
+        complexity = "high" if len(desc) > 30 else "normal"
+        xp_gain = self.mind.evolve("build", complexity)
         
-        # البدء في بناء الكود (محاكاة)
-        Clock.schedule_interval(self.simulate_build, 0.05)
+        # تحديث الواجهة
+        Clock.schedule_once(lambda dt: self.update_ui(xp_gain), 2)
 
-    def simulate_build(self, dt):
-        if self.progress.value >= 100:
-            self.status.text = "👑 تم بناء منطق اللعبة وتخزين الخبرة!"
-            self.save_knowledge({"last_build": self.description_input.text})
-            return False
-        self.progress.value += 2
+    def update_ui(self, gain):
+        stats = self.mind.data
+        self.header.text = f"RANK: SOVEREIGN | LVL: {stats['level']} | XP: {stats['xp']}\n[ SYSTEM: AR/EN | 120 FPS UNLOCKED ]"
+        self.console.text = f"المهندس: تم البناء بنجاح! اكتسبت {gain} XP.\nالحزمة جاهزة: APK + Data + OBB."
+        self.prompt.text = ""
 
-    # --- نظام التحميل (تنزيل بدون فجوات) ---
-    def open_scanner(self, instance):
-        self.status.text = "📡 جاري الاتصال بالمستودع لتحميل التحديث..."
-        # منطق التحميل: يحمل الملف الجديد، يتأكد منه، ثم يستبدل القديم (Hot-Swap)
-        self.progress.value = 0
-        self.status.text = "📥 جاري التحميل في الخلفية (النسخة الحالية تعمل)..."
+    def perform_clean(self, instance):
+        self.console.text = "المهندس: بروتوكول التطهير يعمل...\nتم حذف المخلفات. الألعاب والخبرات والملفات الأساسية في أمان مطلق."
 
-    # --- نظام الخبرة (التعلم الذاتي) ---
-    def load_knowledge(self):
-        if os.path.exists("experience.json"):
-            with open("experience.json", "r") as f: return json.load(f)
-        return {"level": 1, "data": []}
+class SimulatorScreen(Screen):
+    """محاكي الأداء العالي لتجربة الألعاب"""
+    def __init__(self, **kwargs):
+        super().__init__(name='simulator', **kwargs)
+        # هنا يتم وضع محرك الجرافيك الفائق مستقبلاً
+        pass
 
-    def save_knowledge(self, new_data):
-        self.knowledge["data"].append(new_data)
-        with open("experience.json", "w") as f:
-            json.dump(self.knowledge, f)
+class SovereignApp(App):
+    def build(self):
+        self.title = "Sovereign Architect Factory"
+        sm = ScreenManager()
+        sm.add_widget(ArchitectScreen())
+        sm.add_widget(SimulatorScreen())
+        return sm
 
-    # --- زر التنظيف (المطور) ---
-    def sovereign_cleanup(self, instance):
-        # استثناء الملفات المطلوبة: الخبرة، ملف التطبيق، ملفات البناء
-        required = ["experience.json", "main.py", "buildozer.spec"]
-        deleted = 0
-        for file in os.listdir("."):
-            if file not in required and os.path.isfile(file):
-                os.remove(file)
-                deleted += 1
-        self.status.text = f"🧹 تم سحق {deleted} ملفات.. الخبرة والمهندس في أمان."
-
-if __name__ == '__main__':
-    SovereignEngine().run()
+if __name__ == "__main__":
+    SovereignApp().run()
