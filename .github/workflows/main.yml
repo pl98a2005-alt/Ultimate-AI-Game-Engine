@@ -17,38 +17,48 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 👑 سحق المربعات: تحميل الخط العربي ودمجه آلياً
-      - name: Inject Arabic Fonts
+      # 👑 خطوة الحقن اليدوي للـ NDK لتجنب خطأ التحميل
+      - name: Manual NDK & Font Injection
         run: |
+          # تحميل الخط العربي
           curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
+          
+          # تحميل الـ NDK يدوياً بـ wget (أكثر استقراراً من buildozer)
+          mkdir -p $HOME/ndk_manual
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip -d $HOME/ndk_manual
+          echo "NDK_PATH=$HOME/ndk_manual/android-ndk-r25b" >> $GITHUB_ENV
 
-      - name: Install Core & Cython Fix
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
 
-      - name: Forced SDK & NDK Purge
+      - name: Sovereign Build Execution
         run: |
-          rm -rf .buildozer bin
           export SDK_DIR=$HOME/sovereign_tools
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          
+          # إعداد الـ SDK
           mkdir -p $SDK_DIR/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $SDK_DIR/cmdline-tools
           mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
+          
           export PATH=$SDK_DIR/cmdline-tools/latest/bin:$JAVA_HOME/bin:$PATH
           yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
-          sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
-          
-          # تعديل الـ Spec آلياً للمسارات الجديدة
+          sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0"
+
+          # 👑 إجبار Buildozer على استخدام الـ NDK المحمل يدوياً
           sed -i "s|^#\? \?android.sdk_path =.*|android.sdk_path = $SDK_DIR|" buildozer.spec
-          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = $SDK_DIR/ndk/25.2.9519653|" buildozer.spec
+          sed -i "s|^#\? \?android.ndk_path =.*|android.ndk_path = ${{ env.NDK_PATH }}|" buildozer.spec
+          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
           
           /home/runner/.local/bin/buildozer -v android debug
 
-      - name: Upload Artifact
+      - name: Upload Sovereign APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Final-Build
+          name: Sovereign-Success-Build
           path: bin/*.apk
