@@ -17,37 +17,52 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Clean & Force Build
+      - name: Isolated Environment Reconstruction
         run: |
-          # تنظيف أي مخلفات سابقة تسببت في الخطأ
+          # 1. تنظيف شامل للمشروع
           rm -rf .buildozer bin
           
-          # 👑 السر هنا: حذف متغيرات البيئة التي تجبر المحرك على استخدام SDK السيرفر المعطل
-          # هذا سيجعل Buildozer يحمل SDK و NDK متوافقين تلقائياً
-          unset ANDROID_HOME
-          unset ANDROID_SDK_ROOT
-          unset ANDROID_NDK_HOME
+          # 2. إنشاء هيكل أندرويد خاص بنا تماماً بعيداً عن النظام
+          mkdir -p $GITHUB_WORKSPACE/android_storage/cmdline-tools
+          curl -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q sdk.zip -d $GITHUB_WORKSPACE/android_storage/cmdline-tools
+          mv $GITHUB_WORKSPACE/android_storage/cmdline-tools/cmdline-tools $GITHUB_WORKSPACE/android_storage/cmdline-tools/latest
           
+          # 3. إجبار Buildozer على استخدام هذا المسار عبر ملف الإعدادات مباشرة
+          # سنقوم بحقن المسار الجديد داخل buildozer.spec برمجياً لضمان عدم الخطأ
+          sed -i "s|# android.sdk_path =|android.sdk_path = $GITHUB_WORKSPACE/android_storage|g" buildozer.spec
+          
+          # 4. تعريف المسارات الضرورية للبناء
+          export PATH=$PATH:$GITHUB_WORKSPACE/android_storage/cmdline-tools/latest/bin
+          
+          # 5. قبول التراخيص في البيئة الجديدة
+          yes | sdkmanager --sdk_root=$GITHUB_WORKSPACE/android_storage --licenses || true
+          
+          # 6. تشغيل البناء مع تجاهل مسارات السيرفر
           buildozer -v android debug
+        env:
+          # تصفير متغيرات النظام لإجبار المحرك على القراءة من المجلد الجديد
+          ANDROID_HOME: ""
+          ANDROID_SDK_ROOT: ""
+          ANDROID_NDK_HOME: ""
         continue-on-error: false
 
-      - name: Send APK to Telegram
+      - name: Deliver to Telegram
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف للحصول على رابط QR مستقر
           DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 تمت السيادة! المصنع اكتمل." \
+               -F "caption=👑 تمت السيادة المطلقة! المصنع جاهز." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التثبيت السريع"
+               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 مسح للتثبيت السريع"
