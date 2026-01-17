@@ -1,0 +1,6 @@
+kivy==2.3.0
+Kivy-制图==0.3.3
+Cython==0.29.36
+pyjnius==1.6.1
+android==1.0
+
