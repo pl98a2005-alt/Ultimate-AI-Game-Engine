@@ -22,13 +22,14 @@ jobs:
           sudo apt install -y python3-pip openjdk-17-jdk expect curl zip unzip
           pip3 install --user --upgrade "buildozer<1.6.0" "Cython<3.0" virtualenv
 
-      - name: Smart Sovereign Spec
+      - name: Sovereign Engine Config
         run: |
           export PATH=$PATH:$HOME/.local/bin
+          # حذف أي ملف قديم لمنع الخطأ المتكرر
+          rm -f buildozer.spec
           buildozer init
           sed -i 's/title = .*/title = Kings Empire Infinite/' buildozer.spec
           sed -i 's/package.name = .*/package.name = kings_empire_infinite/' buildozer.spec
-          # تقليل المتطلبات المباشرة لضمان نجاح البناء (الموارد تحمل من الداخل)
           sed -i 's/requirements = .*/requirements = python3,kivy,requests,certifi,plyer/' buildozer.spec
           sed -i 's/android.permissions = .*/android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,CAMERA,RECORD_AUDIO,ACCESS_FINE_LOCATION,MODIFY_AUDIO_SETTINGS/' buildozer.spec
           sed -i 's/# android.archs = .*/android.archs = arm64-v8a/' buildozer.spec
@@ -55,8 +56,8 @@ jobs:
             curl -F document=@"$APK_PATH" \
             "https://api.telegram.org/bot8371812323:AAGQQ6GM2DPlPP6TcRjtmyhZ7LFuE6MAByY/sendDocument" \
             -F chat_id="7344005519" \
-            -F caption="🏆 تم كسر الحصار! الضوء الأخضر مفعّل.
+            -F caption="🏆 تم سحق الخطأ البرمجي بنجاح!
             👑 Kings Empire 500K Ready
-            🚀 النظام: Modular Core (خفيف وسريع)
-            📍 السيادة الجغرافية والوعي: نشط."
+            📍 جميع الأنظمة والموافقات مفعلة.
+            🚀 السيادة التقنية في طريقها إليك."
           fi
