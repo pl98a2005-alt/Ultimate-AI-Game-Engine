@@ -26,30 +26,35 @@ jobs:
       - name: Sovereign Tools Alignment
         run: |
           rm -rf .buildozer bin
-          # 1. إعداد الـ SDK
+          # 1. بناء هيكل الـ SDK المحلي
           mkdir -p $HOME/android_sdk/cmdline-tools
           curl -L -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q sdk.zip -d $HOME/android_sdk/cmdline-tools
           mv $HOME/android_sdk/cmdline-tools/cmdline-tools $HOME/android_sdk/cmdline-tools/latest
           
-          # 2. 👑 جسر السيادة: ربط المسارات لإرضاء Buildozer (إصلاح خطأ 103)
+          # 2. إنشاء جسور المسارات
           mkdir -p $HOME/android_sdk/tools/bin
-          ln -s $HOME/android_sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android_sdk/tools/bin/sdkmanager
-          ln -s $HOME/android_sdk/cmdline-tools/latest/bin/avdmanager $HOME/android_sdk/tools/bin/avdmanager
+          ln -sf $HOME/android_sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android_sdk/tools/bin/sdkmanager
           
-          # 3. تفعيل المسارات وقبول التراخيص
+          # 3. قبول التراخيص يدوياً وحقنها
           export PATH=$PATH:$HOME/android_sdk/cmdline-tools/latest/bin
           mkdir -p $HOME/android_sdk/licenses
-          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303" > $HOME/android_sdk/licenses/android-sdk-license
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb7437c302a91464e303\n24333f8a63b6825ea0c55260223df90129d33370" > $HOME/android_sdk/licenses/android-sdk-license
           yes | sdkmanager --sdk_root=$HOME/android_sdk --licenses || true
           
-          # 4. تثبيت الأدوات وحقن الـ Spec
+          # 4. تثبيت المكونات الضرورية
           sdkmanager --sdk_root=$HOME/android_sdk "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+
+          # 5. تنظيف ملف الـ Spec من أي مسارات خاطئة وحقن المسار الصحيح
           sed -i 's|^#\? \?android.sdk_path =.*|android.sdk_path = /home/runner/android_sdk|' buildozer.spec
           sed -i 's|^#\? \?android.ndk_path =.*|android.ndk_path = /home/runner/android_sdk/ndk/25.2.9519653|' buildozer.spec
-          
-          # 5. تشغيل البناء بنسخة جافا المتوافقة
+          sed -i 's|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|' buildozer.spec
+
+          # 6. السيادة: تصفير المتغيرات القديمة وتشغيل البناء
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          # إزالة أي تأثير لـ Android SDK الموجود مسبقاً في السيرفر
+          unset ANDROID_HOME
+          unset ANDROID_SDK_ROOT
           /home/runner/.local/bin/buildozer -v android debug
         continue-on-error: false
 
@@ -57,9 +62,9 @@ jobs:
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف والحصول على رابط مباشر
+          # نستخدم رابطاً أكثر استقراراً للرفع
           DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 نصرٌ مبين! المهندس جاهز للعمل يا ملك. التحديث يشمل إصلاح الجسور البرمجية ونظام الخبرة." \
+               -F "caption=👑 نصرٌ مبين! المهندس أصبح حقيقة. جاري التنزيل السيادي بلا فجوات." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
