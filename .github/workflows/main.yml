@@ -4,45 +4,41 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      # استخدام صورة Docker مجهزة ببيئة أندرويد وبيلدوزر كاملة
+      image: kivy/buildozer:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build with Sovereign Docker Environment
-        uses: ArtemSerebrennikov/buildozer-action@v1
-        with:
-          buildozer_version: master
-          # هذا السطر هو مفتاح النجاح: قبول الرخص وتحديد الهدف
-          command: android debug
-          buildozer_config: buildozer.spec
-
-      - name: Generate Sovereign Files (If missing)
-        if: always()
+      - name: Generate Core (Φ)
         run: |
-          if [ ! -f main.py ]; then
-            echo "from kivy.app import App; from kivy.uix.label import Label
-            class SovereignApp(App):
-                def build(self): return Label(text='Φ SYSTEM ACTIVE')
-            SovereignApp().run()" > main.py
-          fi
+          # تأكد من وجود ملفاتك الأساسية قبل البدء
+          echo "from kivy.app import App; from kivy.uix.label import Label
+          class SovereignApp(App):
+              def build(self): return Label(text='Φ SYSTEM LIVE')
+          SovereignApp().run()" > main.py
 
-          if [ ! -f buildozer.spec ]; then
-            echo "[app]
-            title = Sovereign
-            package.name = sovereign.phi
-            package.domain = org.king
-            source.dir = .
-            version = 1.0
-            requirements = python3,kivy
-            orientation = portrait
-            android.accept_sdk_license = True
-            android.api = 31
-            android.minapi = 21
-            android.archs = arm64-v8a
-            log_level = 2" > buildozer.spec
-          fi
+          echo "[app]
+          title = Sovereign
+          package.name = sovereign.phi
+          package.domain = org.king
+          source.dir = .
+          version = 1.0
+          requirements = python3,kivy
+          orientation = portrait
+          android.accept_sdk_license = True
+          android.api = 31
+          android.minapi = 21
+          android.archs = arm64-v8a
+          log_level = 2" > buildozer.spec
 
-      - name: Upload Sovereign Result
+      - name: Execute Build Inside Container
+        run: |
+          # قبول الرخص داخل الحاوية وبدء البناء فوراً
+          yes | buildozer -v android debug
+
+      - name: Deliver Sovereign APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Success-APK
+          name: Sovereign-Final-Success
           path: bin/*.apk
