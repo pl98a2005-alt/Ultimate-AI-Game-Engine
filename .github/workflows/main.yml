@@ -23,42 +23,41 @@ jobs:
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Deep Fix & Build
-        env:
-          ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+      - name: Sovereign Path Injection & Build
         run: |
-          # 1. إنشاء بيئة SDK معزولة ومنظمة كما يريدها المحرك تماماً
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          curl -o sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q sdk.zip -d $ANDROID_HOME/cmdline-tools
-          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          # 1. تحديد المسارات الأصلية في السيرفر
+          REAL_SDK="/usr/local/lib/android/sdk"
+          REAL_NDK="/usr/local/lib/android/sdk/ndk/27.3.13750724"
           
-          # 2. إنشاء "جسر" (Symlink) للمسار القديم الذي يبحث عنه Buildozer غباءً
-          mkdir -p $ANDROID_HOME/tools/bin
-          ln -s $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
+          # 2. 👑 الخدعة الملكية: إنشاء المجلدات التي يتوقعها Buildozer وربطها بالأدوات الحقيقية
+          sudo mkdir -p $REAL_SDK/tools/bin
+          # ربط sdkmanager الحديث بالمكان القديم الذي يبحث عنه المحرك
+          sudo ln -sf $REAL_SDK/cmdline-tools/latest/bin/sdkmanager $REAL_SDK/tools/bin/sdkmanager
           
-          # 3. تحديث المسارات البيئية
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          # 3. قبول التراخيص باستخدام المسار الحقيقي
+          yes | $REAL_SDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=$REAL_SDK --licenses || true
           
-          # 4. قبول التراخيص يدوياً قبل البدء
-          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
-          
-          # 5. تشغيل بناء المحرك السيادي
+          # 4. تنظيف البيئة وبدء البناء السيادي
+          rm -rf .buildozer
           buildozer -v android debug
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.3.13750724
         continue-on-error: false
 
       - name: Deliver to Telegram
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف والحصول على رابط للـ QR عبر File.io المستقر
+          # رفع الملف والحصول على رابط QR
           DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           # إرسال الملف والـ QR إلى تليجرام
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 السيادة تحققت! المصنع جاهز." \
+               -F "caption=👑 السيادة تحققت! المصنع بين يديك." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 مسح للتثبيت السريع"
+               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التثبيت السريع"
