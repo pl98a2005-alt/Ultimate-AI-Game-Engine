@@ -17,26 +17,23 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Critical Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev curl jq
-          pip install --user --upgrade "buildozer>=1.5.0" cython virtualenv
+          pip install --user --upgrade buildozer cython virtualenv
 
-      - name: Sovereign Force Build
+      - name: Clean & Force Build
         run: |
-          # تنظيف أي محاولات فاشلة سابقة
+          # تنظيف أي مخلفات سابقة تسببت في الخطأ
           rm -rf .buildozer bin
           
-          # إعداد المسارات للوصول للأدوات الحقيقية في السيرفر
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+          # 👑 السر هنا: حذف متغيرات البيئة التي تجبر المحرك على استخدام SDK السيرفر المعطل
+          # هذا سيجعل Buildozer يحمل SDK و NDK متوافقين تلقائياً
+          unset ANDROID_HOME
+          unset ANDROID_SDK_ROOT
+          unset ANDROID_NDK_HOME
           
-          # قبول التراخيص بالقوة
-          yes | sdkmanager --licenses || true
-          
-          # 🚀 إطلاق عملية البناء مع تجاهل الأخطاء الطفيفة في النسخ
           buildozer -v android debug
         continue-on-error: false
 
@@ -44,14 +41,13 @@ jobs:
         if: success()
         run: |
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
-          # رفع الملف والحصول على رابط سريع للـ QR
-          UPLOAD_DATA=$(curl -F "file=@$APK_PATH" https://file.io)
-          DOWNLOAD_URL=$(echo $UPLOAD_DATA | jq -r '.link')
+          # رفع الملف للحصول على رابط QR مستقر
+          DOWNLOAD_URL=$(curl -F "file=@$APK_PATH" https://file.io | jq -r '.link')
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" -F "document=@$APK_PATH" \
-               -F "caption=👑 تمت السيادة بنجاح! تطبيقك جاهز." \
+               -F "caption=👑 تمت السيادة! المصنع اكتمل." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
-               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التحميل السريع"
+               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" -d photo="$QR_URL" -d caption="📸 كود التثبيت السريع"
