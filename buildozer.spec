@@ -1,35 +1,57 @@
 [app]
-title = Sovereign Engine
-package.name = sovereign.phi
-package.domain = org.king
+# (str) عنوان التطبيق
+title = Sovereign Architect
+
+# (str) اسم الحزمة (Package name)
+package.name = sovereign_architect
+
+# (str) اسم النطاق (Package domain)
+package.domain = com.sovereign.engine
+
+# (str) مسار الكود المصدري
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,json,txt
-version = 1.0.0
 
-# المكتبات: أضفت مكتبات المعالجة لضمان عمل "المهندس" و"نظام التحميل"
-requirements = python3,kivy,requests,urllib3,certifi,charset-normalizer,idna
+# (list) الملفات المضمنة (مهم جداً للتعلم السري)
+source.include_exts = py,png,jpg,kv,atlas,json,bin
 
-orientation = portrait
+# (str) نسخة التطبيق
+version = 1.25
+
+# (list) المتطلبات البرمجية (دعم الجرافيك والأداء)
+requirements = python3,kivy,hostpython3,android,pyjnius,jnius
+
+# (str) اتجاه الشاشة (يدعم التدوير لتجربة الألعاب)
+orientation = all
+
+# (bool) تفعيل وضع ملء الشاشة
 fullscreen = 1
 
-# الصلاحيات: إضافة صلاحية التثبيت (REQUEST_INSTALL_PACKAGES) ليعمل نظام التحديث التلقائي بلا فجوات
-android.permissions = INTERNET, CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, REQUEST_INSTALL_PACKAGES
+# (list) أذونات السيادة (الوصول للملفات لتوليد OBB و Data)
+android.permissions = WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, INTERNET, BLUETOOTH, BLUETOOTH_ADMIN
 
-# إعدادات الأدوات (مضبوطة لتتوافق مع سيرفر 2026)
-android.api = 33
+# (int) مستوى الأندرويد المستهدف (أحدث نسخة لعام 2026)
+android.api = 34
 android.minapi = 21
-# نستخدم 25b لأنه الأكثر استقراراً لمحركات الذكاء الاصطناعي
-android.ndk = 25b
+
+# (list) معماريات المعالج (دعم 64 بت للأداء العالي)
 android.archs = arm64-v8a, armeabi-v7a
 
-# هذه المسارات سيتم تجاوزها بواسطة main.yml ولكن تركناها للاحتياط
-android.sdk_path = /home/runner/android_sdk
-android.ndk_path = /home/runner/android_sdk/ndk/25.2.9519653
-android.accept_sdk_license = True
+# (bool) تفعيل نظام الـ OBB تلقائياً للملفات الضخمة
+android.copy_libs = 1
+android.enable_vulkan = True
 
-# أيقونة التطبيق (إذا أردت وضع واحدة لاحقاً)
-# android.icon.filename = %(source.dir)s/icon.png
+# (str) أيقونة التطبيق (سيقوم المهندس بتوليدها لاحقاً)
+# icon.filename = %(source.dir)s/data/icon.png
+
+# (list) دعم أجهزة التحكم (Gamepads) عبر USB وبلوتوث
+android.features = android.hardware.usb.host, android.hardware.bluetooth
+
+# (str) وضع الـ Log (مهم لمراقبة الـ XP والتعلم)
+android.logcat_filters = *:S python:D
 
 [buildozer]
+# (int) مستوى التقرير (Level 2 يظهر تفاصيل البناء)
 log_level = 2
-warn_on_root = 1
+
+# (str) المسار المؤقت للبناء
+bin_dir = ./bin
