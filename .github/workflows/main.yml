@@ -3,7 +3,7 @@ name: SOVEREIGN_STATION_AUTO_BUILD
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً أيضاً
+  workflow_dispatch:
 
 jobs:
   build:
@@ -20,43 +20,39 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
-          sudo apt-get install -y curl jq # تثبيت أدوات التوصيل والروابط
+          # تم تحديث الحزم لتتوافق مع Ubuntu 24.04 وإزالة الحزم القديمة
+          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+          sudo apt-get install -y curl jq
           pip install --user --upgrade buildozer cython virtualenv
 
       - name: Build with Buildozer
         run: |
-          # قبول رخص أندرويد تلقائياً وبدء البناء
+          # قبول الرخص وبدء البناء
           yes | buildozer -v android debug
         continue-on-error: false
 
       - name: Process and Send to Telegram
         if: success()
         run: |
-          # 1. البحث عن ملف الـ APK الناتج
+          # 1. البحث عن الملف
           APK_PATH=$(find bin/ -name "*.apk" | head -n 1)
           APK_NAME=$(basename "$APK_PATH")
           
-          # 2. رفع الملف للحصول على رابط مباشر للـ QR Code
-          # نستخدم bashupload لأنه يعطي روابط مباشرة وسريعة
-          UPLOAD_RESPONSE=$(curl -T "$APK_PATH" "https://bashupload.com/$APK_NAME")
-          DOWNLOAD_URL=$(echo "$UPLOAD_RESPONSE" | grep -o 'https://bashupload.com/[^ ]*' | head -n 1)
+          # 2. الرفع والحصول على رابط للـ QR
+          # استخدمنا catbox كبديل قوي ومستقر للروابط المباشرة
+          DOWNLOAD_URL=$(curl -F "reqtype=fileupload" -F "fileToUpload=@$APK_PATH" https://catbox.moe/user/api.php)
           
-          # 3. توليد الـ QR Code باستخدام API عالمي
+          # 3. توليد QR Code
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$DOWNLOAD_URL"
           
-          # 4. إرسال ملف الـ APK مباشرة إلى تليجرام
+          # 4. إرسال APK لتليجرام
           curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                -F "document=@$APK_PATH" \
-               -F "caption=👑 يا ملك، تم بناء 'المصنع السيادي' بنجاح! 📦 
-          
-          🚀 يمكنك تثبيت التطبيق مباشرة من الملف أعلاه." \
+               -F "caption=👑 اكتمل البناء يا ملك! النسخة السيادية جاهزة." \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
 
-          # 5. إرسال صورة الـ QR Code للتثبيت السريع
+          # 5. إرسال QR Code
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendPhoto" \
                -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
                -d photo="$QR_URL" \
-               -d caption="📸 مسح التثبيت السريع (Scan to Install)
-          
-          هذا الكود يتيح لك تحميل النسخة على أي هاتف آخر فوراً."
+               -d caption="📸 مسح للتثبيت السريع"
