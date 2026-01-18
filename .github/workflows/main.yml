@@ -1,39 +1,23 @@
-name: SOVEREIGN_STATION_FINAL_STRIKE
-
+name: SOVEREIGN_STRIKE
 on: [push, workflow_dispatch]
-
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Purge Old Data (Deep Clean)
-        run: |
-          # مسح شامل لضمان عدم وجود تضارب من محاولات سابقة [cite: 2026-01-13]
-          rm -rf .buildozer
-          rm -rf bin
-          rm -rf ~/.buildozer
-
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
-      - name: Install System Dependencies
+      - name: Build APK
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk wget
-          pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
-
-      - name: Build Sovereign APK
-        run: |
+          pip install --user --upgrade "buildozer>=1.5.0" Cython virtualenv
           export PATH=$PATH:$HOME/.local/bin
-          # تشغيل البناء مع فرض إعادة تحميل الأدوات
           buildozer -v android debug
-        
-      - name: Upload APK
+      - name: Export
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-Success-Build
+          name: Sovereign-Final-APK
           path: bin/*.apk
