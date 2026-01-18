@@ -1,78 +1,25 @@
 name: SOVEREIGN_STATION_AUTO_BUILD
-
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
-
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev openjdk-17-jdk wget
           pip install --user --upgrade "buildozer>=1.5.0" "Cython<3.0" virtualenv
-
-      - name: Sovereign Toolchain Reconstruction
-        run: |
-          # 1. تعريف المسارات داخل بيئة العمل
-          PLATFORM_DIR="$HOME/.buildozer/android/platform"
-          SDK_DIR="$PLATFORM_DIR/android-sdk"
-          NDK_TARGET="$PLATFORM_DIR/android-ndk-r25.2.9519653"
-          
-          # 2. ضمان وجود الهيكل الأساسي
-          mkdir -p $SDK_DIR/cmdline-tools
-          
-          # 3. تحميل الخط العربي (هوية المصنع)
-          curl -L -o Cairo-Bold.ttf https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf
-          
-          # 4. حقن الـ NDK بطريقة تضمن عدم الفشل
-          if [ ! -d "$NDK_TARGET" ]; then
-            echo "Injecting NDK..."
-            wget -q -c https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-            unzip -q android-ndk-r25b-linux.zip
-            mv android-ndk-r25b $NDK_TARGET
-          fi
-
-          # 5. حقن الـ SDK وجسر الـ sdkmanager
-          if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
-            echo "Injecting SDK Tools..."
-            wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-            unzip -q commandlinetools-linux-9477386_latest.zip -d $SDK_DIR/cmdline-tools
-            mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
-            mkdir -p $SDK_DIR/tools/bin
-            ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-          fi
-          
-          # 6. قبول التراخيص يدوياً
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.0" "platform-tools"
-
-      - name: Build Execution
+      - name: Build APK
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$PATH:$HOME/.local/bin
-          
-          # تعديل الـ Spec برمجياً لتجنب أخطاء التجميع السابقة
-          sed -i "s|^#\? \?android.accept_sdk_license =.*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\? \?android.no_byte_compile_python_optimization =.*|android.no_byte_compile_python_optimization = True|" buildozer.spec
-          sed -i "s|^android.archs =.*|android.archs = arm64-v8a|" buildozer.spec
-          
-          # تشغيل البناء مباشرة (بدون أمر clean المتسبب في الخطأ)
           buildozer -v android debug
-
-      - name: Upload Sovereign APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sovereign-First-Success
+          name: Sovereign-Engineer-Final
           path: bin/*.apk
