@@ -3,25 +3,19 @@ title = Sovereign Architect
 package.name = sovereign_architect
 package.domain = com.sovereign.engine
 source.dir = .
-# إضافة ttf هنا لضمان دمج الخط داخل الـ APK
-source.include_exts = py,png,jpg,kv,atlas,json,bin,ttf
-version = 1.25
-requirements = python3,kivy
+source.include_exts = py,png,jpg,kv,atlas,ttf
+version = 2.5
+requirements = python3,kivy,requests,urllib3,certifi
 
-orientation = landscape
+# الصلاحيات السيادية [2026-01-11]
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE
+
+orientation = portrait
 fullscreen = 1
+android.archs = arm64-v8a
+android.allow_backup = True
 
-android.api = 33
-android.minapi = 21
-android.ndk = 25.2.9519653
-android.build_tools_version = 33.0.0
-android.skip_update = True
+# منع الأخطاء التي واجهناها سابقاً
+android.skip_update = False
 android.accept_sdk_license = True
-
-android.permissions = WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, INTERNET
-android.archs = arm64-v8a, armeabi-v7a
-android.enable_vulkan = True
-
-[buildozer]
-log_level = 2
-bin_dir = ./bin
+android.no_byte_compile_python_optimization = True
